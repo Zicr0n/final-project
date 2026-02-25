@@ -11,18 +11,23 @@ const webSocketServer = {
 		const io = new Server(server.httpServer)
 
 		io.on('connection', (socket) => {
-			socket.emit('eventFromServer', 'Hello, World 👋')
-			console.log("a user connected")
+			// Exclude sender
+			// socket.emit('hello', 'world'); 
+			// Incllude sender
+			// io.emit('chat message', msg);
+			console.log('User connected')
 
-			socket.on('chat_message', (msg)=>{
-				console.log("message : " + msg);
-			});
+			socket.emit('eventFromServer', 'Hello from production 👋')
 
-			socket.on('disconnect', ()=>{
-				console.log("User Disconnected")
+			socket.on('chat_message', (msg) => {
+				io.emit('chat_message', msg);
+			})
+
+			socket.on('disconnect', () => {
+				console.log('User disconnected')
 			})
 		})
 	}
 }
 
-export default defineConfig({ plugins: [tailwindcss(), sveltekit(), webSocketServer] });
+export default defineConfig({ plugins: [tailwindcss(), sveltekit()] });

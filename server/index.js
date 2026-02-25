@@ -1,30 +1,39 @@
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
-
 import { handler } from '../build/handler.js'
 
-const port = 3000
+const port = process.env.PORT || 3000
+
 const app = express()
 const server = createServer(app)
 
-const io = new Server(server)
+const io = new Server(server, {
+  cors: {
+    origin: '*', // fine for now, restrict later
+  }
+})
 
 io.on('connection', (socket) => {
-  socket.emit('eventFromServer', 'Hello, World 👋')
-  console.log("a user connected")
+  // Exclude sender
+  // socket.emit('hello', 'world'); 
+  // Incllude sender
+    // io.emit('chat message', msg);
+  console.log('User connected')
 
-  socket.on('chat_message', (msg)=>{
-    console.log("message : " + msg);
-  });
+  socket.emit('eventFromServer', 'Hello from production 👋')
 
-  socket.on('disconnect', ()=>{
-    console.log("User Disconnected")
+  socket.on('chat_message', (msg) => {
+      io.emit('chat_message', msg);
+  })
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected')
   })
 })
 
-// SvelteKit should handle everything else using Express middleware
-// https://github.com/sveltejs/kit/tree/master/packages/adapter-node#custom-server
 app.use(handler)
 
-server.listen(port)
+server.listen(port, () => {
+  console.log(`Server running on port ${port}`)
+})
