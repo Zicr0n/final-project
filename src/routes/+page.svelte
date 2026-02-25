@@ -1,11 +1,22 @@
 <script lang="ts">
   import { io } from 'socket.io-client'
+	import { onMount } from 'svelte';
 	import { preventDefault } from 'svelte/legacy';
 
   const socket = io()
+  let messages = $state([])
+
+  onMount(()=>{
+
+  })
 
   socket.on('eventFromServer', (message) => {
     console.log(message)
+  })
+
+  socket.on('chat_message', (msg)=>{
+    console.log("received socket message")
+      messages.push(msg)
   })
 
   var chat_input = ""
@@ -27,3 +38,9 @@
   <input type="text" bind:value={chat_input} name="text">
   <button type="submit">Submit Text</button>
 </form>
+
+<ul id="messages">
+  {#each messages as msg}
+    <li>{msg}</li>
+  {/each}
+</ul>
