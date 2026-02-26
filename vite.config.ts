@@ -30,4 +30,4 @@ const webSocketServer = {
 	}
 }
 
-export default defineConfig({ plugins: [tailwindcss(), sveltekit()] });
+export default defineConfig({ plugins: [tailwindcss(), sveltekit(), webSocketServer] });

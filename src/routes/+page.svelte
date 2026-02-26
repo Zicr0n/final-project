@@ -3,12 +3,17 @@
 	import { onMount } from 'svelte';
 	import { preventDefault } from 'svelte/legacy';
 
-  const socket = io()
+  const socket = io({
+    ackTimeout : 10000,
+    retries : 3
+  })
   let messages = $state([])
 
   onMount(()=>{
 
   })
+
+  
 
   socket.on('eventFromServer', (message) => {
     console.log(message)

@@ -11,14 +11,15 @@ const server = createServer(app)
 const io = new Server(server, {
   cors: {
     origin: '*', // fine for now, restrict later
-  }
+  },
+  connectionStateRecovery : {}
 })
 
 io.on('connection', (socket) => {
   // Exclude sender
   // socket.emit('hello', 'world'); 
   // Incllude sender
-    // io.emit('chat message', msg);
+  // io.emit('chat message', msg);
   console.log('User connected')
 
   socket.emit('eventFromServer', 'Hello from production 👋')
