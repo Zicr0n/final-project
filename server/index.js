@@ -4,7 +4,21 @@ import { Server } from 'socket.io'
 import { handler } from '../build/handler.js'
 
 const port = process.env.PORT || 3000
-const rooms = {}
+const rooms = {
+	lobby : {
+		players : {},
+		map : "plaza"
+	},
+	dungeon: {
+		players : {},
+		map : "cave"
+	},
+	miku: {
+		players : {},
+		map : "miku"
+	}
+}
+
 
 const app = express()
 const server = createServer(app)
