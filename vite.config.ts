@@ -3,13 +3,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { type ViteDevServer ,defineConfig } from 'vite';
 import { Server } from 'socket.io';
 
-class Room{
-	constructor(id) {
-		this.id = id
-		this.players = []
-	}
-} 
-
 const rooms = {}
 
 const webSocketServer = {
