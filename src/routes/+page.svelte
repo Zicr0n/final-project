@@ -1,30 +1,26 @@
 <script lang="ts">
   import { io } from 'socket.io-client'
 	import { onMount } from 'svelte';
-	import { preventDefault } from 'svelte/legacy';
 
   const socket = io({
     ackTimeout : 10000,
     retries : 3
   })
+
   let messages = $state([])
-
-  onMount(()=>{
-
-  })
-
-  
-
-  socket.on('eventFromServer', (message) => {
-    console.log(message)
-  })
+  let actives = $state(0)
 
   socket.on('chat_message', (msg)=>{
     console.log("received socket message")
       messages.push(msg)
   })
 
-  var chat_input = ""
+  socket.on('player_joined', () =>{
+    console.log("player joined")
+    actives += 1
+  })
+
+  var chat_input = $state("")
 
   function message_sent(){
     if (chat_input){
@@ -34,15 +30,21 @@
     }
   }
 
-//   $effect(() => {
-// 		socket.emit('eventFromClient', )
-// 	});
+  function joinRoom(){
+    console.log("hello")
+    socket.emit("message", {meta : "join", message : "", room : "0"})
+  }
+
 </script>
 
-<form on:submit|preventDefault={message_sent}>
+<p>{actives}</p>
+
+<form onsubmit={message_sent}>
   <input type="text" bind:value={chat_input} name="text">
   <button type="submit">Submit Text</button>
 </form>
+
+<button onclick={joinRoom}>Join Room</button>
 
 <ul id="messages">
   {#each messages as msg}
