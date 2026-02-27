@@ -99,7 +99,7 @@
     }
 </script>
 
-<div class="room" tabindex="0" on:keydown={handleKey}>
+<div class="room" tabindex="0" onkeydown={handleKey}>
     {#each Object.values($players) as p}
         <div
             class="player"
