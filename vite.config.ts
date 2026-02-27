@@ -52,6 +52,8 @@ const webSocketServer = {
 				});
 			});
 
+			// socket.on("send_message");
+
 			socket.on("disconnect", () => {
 				for (const roomId in rooms) {
 					if (rooms[roomId][uuid]) {

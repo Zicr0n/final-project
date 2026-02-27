@@ -6,7 +6,6 @@ import { handler } from '../build/handler.js'
 const port = process.env.PORT || 3000
 const rooms = {}
 
-
 const app = express()
 const server = createServer(app)
 
@@ -45,17 +44,16 @@ io.on("connection", socket => {
 			});
 
 			socket.on("move", ({ roomId, x, y }) => {
-				if (!rooms[roomId] || !rooms[roomId][uuid]) return;
+        x = Math.max(0, Math.min(800, x));
+        y = Math.max(0, Math.min(600, y));
 
-				rooms[roomId][uuid].x = x;
-				rooms[roomId][uuid].y = y;
+        rooms[roomId][uuid].x = x;
+        rooms[roomId][uuid].y = y;
 
-				socket.to(roomId).emit("player_moved", {
-					id: uuid,
-					x,
-					y
-				});
-			});
+        socket.to(roomId).emit("player_moved", { id: uuid, x, y });
+      });
+
+      socket.on("")
 
 			socket.on("disconnect", () => {
 				for (const roomId in rooms) {

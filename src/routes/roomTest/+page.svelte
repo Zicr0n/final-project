@@ -58,7 +58,6 @@
             });
         });
 
-
         socket.on("player_left", (id) => {
             players.update(p => {
                 delete p[id];
@@ -70,6 +69,12 @@
     // movement handling
     let x = 200;
     let y = 200;
+
+    const mapWidth = 800;
+    const mapHeight = 600;
+
+    x = Math.max(0, Math.min(mapWidth, x));
+    y = Math.max(0, Math.min(mapHeight, y));
 
     function handleKey(e) {
         const speed = 5;
@@ -88,6 +93,10 @@
             socket.emit("move", { roomId: "lobby", x, y });
         });
     }
+
+    function SendMessage(){
+        socket.emit('send_message', {roomId : "lobby", message : "hello world!"})
+    }
 </script>
 
 <div class="room" tabindex="0" on:keydown={handleKey}>
@@ -100,6 +109,8 @@
         </div>
     {/each}
 </div>
+
+<button onclick={SendMessage}>Greet!</button>
 
 <style>
 .room {
