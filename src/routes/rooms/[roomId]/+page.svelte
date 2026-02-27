@@ -1,15 +1,19 @@
 <script>
+    let { data } = $props();
+    // svelte-ignore state_referenced_locally
+    const roomId = $state(data.roomId);
+
     import { onMount } from "svelte";
     import io from "socket.io-client";
     import { players, myId } from "$lib/stores/players";
     import { chat } from "$lib/stores/chat";
+	import { fail, redirect } from "@sveltejs/kit";
 
     let socket;
+    let error_room = $state(false)
 
     let lastFrame = performance.now();
     let chatInput = $state("");
-
-    let error_room = false;
 
     function animate(now) {
         const dt = (now - lastFrame) / 1000;
@@ -37,7 +41,7 @@
     onMount(() => {
         socket = io();
 
-        socket.emit("join_room", { roomId: "lobby" });
+        socket.emit("join_room", { roomId: roomId });
 
         socket.on("chat_message", ({sender, text}) =>{
             chat.update(c => [...c, {sender, text}]);
@@ -50,7 +54,9 @@
             y = character.y
         });
 
-      
+        socket.on("room_error", ({error}) =>{
+            error_room = true;
+        })
 
         socket.on("existing_players", (existing) => {
             players.set(existing);
@@ -102,7 +108,7 @@
                 if (p[id]) p[id] = { ...p[id], x, y };
                 return p;
             });
-            socket.emit("move", { roomId: "lobby", x, y });
+            socket.emit("move", { roomId: roomId, x, y });
         });
     }
 
@@ -111,18 +117,20 @@
         const text = chatInput;
         chatInput = ""
 
-        socket.emit('chat_message', {roomId : "lobby", message : text})
+        socket.emit('chat_message', {roomId : roomId, message : text})
     }
 </script>
 
 {#if error_room == false}
-<div class="room" tabindex="0" onkeydown={handleKey}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div class="room {roomId}" tabindex="0" onkeydown={handleKey}>
     {#each Object.values($players) as p}
         <div
             class="player"
             style="left:{p.x}px; top:{p.y}px;"
         >
-            <img src={`/sprites/${p.sprite}.png`} alt="sprite" />
+            <img src={`/player.webp`} alt="sprite" />
         </div>
     {/each}
 </div>
@@ -144,21 +152,20 @@
 <p>ERROR!</p>
 {/if}
 
-
 <style>
 .room {
     position: relative;
     width: 800px;
     height: 600px;
-    background: #eee;
     overflow: hidden;
     outline: none;
 }
 
 .player {
     position: absolute;
-    width: 32px;
-    height: 32px;
+    width: 128px;
+    height: 128px;
     transform: translate(-50%, -50%);
 }
+
 </style>

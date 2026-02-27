@@ -1,3 +1,12 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+.lobby{
+    background: url('https://static.wikia.nocookie.net/club-penguin-rewritten/images/7/79/Plaza.png/revision/latest?cb=20180911165114') center/cover no-repeat;
+}
+.miku{
+    border-radius: 20px;
+    border-width: 30px;
+    background: url('https://images.squarespace-cdn.com/content/v1/57825361440243db4a4b7830/1655346565115-IZRITMCG2WH8RF5F19V6/download+%2879%29.jpg?format=2500w') center/cover no-repeat;
+}
