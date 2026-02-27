@@ -4,6 +4,8 @@ import { Server } from 'socket.io'
 import { handler } from '../build/handler.js'
 
 const port = process.env.PORT || 3000
+const rooms = {}
+
 
 const app = express()
 const server = createServer(app)
