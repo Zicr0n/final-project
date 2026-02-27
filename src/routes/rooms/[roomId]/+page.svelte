@@ -55,6 +55,7 @@
         });
 
         socket.on("room_error", ({error}) =>{
+            console.log(error)
             error_room = true;
         })
 
