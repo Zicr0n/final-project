@@ -1,0 +1,97 @@
+---
+title: "Project"
+author: "Simon Ullerstam"
+format: revealjs
+---
+
+# Uppgiften
+Bygga en webapp likt tidigare
+
+## Tre faser
+::: {.fragment}
+**1.** Ide & planering
+:::
+::: {.fragment}
+**2.** Implementation
+:::
+::: {.fragment}
+**3.** Demonstration & inlämning
+:::
+
+## Strukturerat projektarbete
+::: {.fragment}
+- Planering
+  - Inkl. reality check av ide & planering (rimligt?)
+  - ^ Disskusion med mig när initell planering är klar
+:::
+::: {.fragment}
+- Dokumentation
+:::
+::: {.fragment}
+- Todo lista/kanban board för taskhantering
+:::
+
+## Nytt för detta projekt
+::: {.fragment}
+- Systemdokumentation
+  - Kommentera viktiga funktion och delar av koden
+  - Systembeskrivning i separat dokument (pdf / md)
+:::
+::: {.fragment}
+- Taskhantering
+  - Trello board 
+  - Github project
+:::
+::: {.fragment}
+- Demonstration av webapp (i liten grupp)
+:::
+::: {.fragment}
+- Helt fria tyglar
+:::
+
+## Krav
+- Webapp (men dynamsik routing och layouts)
+- Databas (modeller och relationer)
+- Användare (inloggning, kryptering och auth tokens)
+- Bilduppladdning
+- Hostning (render.com)
+
+# Inspiration & ideer
+Vad vill ni göra?
+
+## Ideer
+- Forum / social plattform
+- Realtidsmessenger / videostreaming
+- Content webpage med extra funktionallitet
+
+Finns fler föslag i uppgiften!
+
+## Technologi
+::: {.columns}
+::: {.column width="50%"}
+- sse
+- prisma -> dirzzle
+- sqlite -> postgres (docker/bare metal/render)
+- load, actions -> remote functions
+- Sockets chatt/stream (nativly?)
+:::
+::: {.column width="50%"}
+- npm -> pnpm
+- node -> deno
+- UX & UI design
+- CMS
+- DB kryptering
+- LUCIA för auth
+- jwt tokens
+:::
+:::
+
+## Övrigt
+- admin vy
+- tester (vitest)
+- automation (github actions)
+- annat coolt ni kan hitta på!
+
+## Länkar
+- https://svelte.dev/docs/kit/remote-functions
+- https://v3.lucia-auth.com/getting-started/sveltekit
