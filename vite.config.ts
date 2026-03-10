@@ -1,20 +1,43 @@
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
-import { type ViteDevServer ,defineConfig } from 'vite';
+import { type ViteDevServer, defineConfig } from 'vite';
 import { Server } from 'socket.io';
 
-const rooms = {
-	lobby : {
-		players : {},
-		map : "plaza"
-	},
-	dungeon: {
-		players : {},
-		map : "cave"
-	},
-	miku: {
-		players : {},
-		map : "miku"
+const EMPTY_ROOM_TIMEOUT = 5 * 60 * 1000 // 5 minutes in ms
+
+const rooms: Record<string, {
+	name: string,
+	map: string,
+	players: Record<string, any>,
+	emptyTimer: ReturnType<typeof setTimeout> | null
+}> = {}
+
+function getRoomList() {
+	return Object.entries(rooms).map(([roomId, room]) => ({
+		roomId,
+		name: room.name,
+		playerCount: Object.keys(room.players).length,
+		map: room.map
+	}))
+}
+
+function closeRoom(io: Server, roomId: string) {
+	if (!rooms[roomId]) return
+	console.log(`Room "${rooms[roomId].name}" (${roomId}) closed due to inactivity.`)
+	io.to(roomId).emit("room_closed", { roomId })
+	io.socketsLeave(roomId)
+	delete rooms[roomId]
+	io.emit("room_list", getRoomList())
+}
+
+function resetEmptyTimer(io: Server, roomId: string) {
+	if (!rooms[roomId]) return
+	if (rooms[roomId].emptyTimer) {
+		clearTimeout(rooms[roomId].emptyTimer!)
+		rooms[roomId].emptyTimer = null
+	}
+	if (Object.keys(rooms[roomId].players).length === 0) {
+		rooms[roomId].emptyTimer = setTimeout(() => closeRoom(io, roomId), EMPTY_ROOM_TIMEOUT)
 	}
 }
 
@@ -26,104 +49,85 @@ const webSocketServer = {
 		const io = new Server(server.httpServer)
 
 		io.on("connection", socket => {
-			const uuid = crypto.randomUUID();
+			const uuid = crypto.randomUUID()
 
-			socket.on("join_room", ({ roomId }) => {
-				if(!rooms[roomId]){
-					socket.emit("room_error", {error : "Room does not exist."})
-					return;
+			// Send current room list on connect
+			socket.emit("room_list", getRoomList())
+
+			socket.on("create_room", ({ name, map = "default" }: { name: string, map?: string }) => {
+				if (!name || !name.trim()) {
+					socket.emit("room_error", { error: "Room name cannot be empty." })
+					return
 				}
 
-				socket.join(roomId);
+				const roomId = crypto.randomUUID()
+				rooms[roomId] = { name: name.trim(), map, players: {}, emptyTimer: null }
+				resetEmptyTimer(io, roomId)
+
+				socket.emit("room_created", { roomId, name: name.trim(), map })
+				io.emit("room_list", getRoomList())
+
+				console.log(`Room "${name}" (${roomId}) created.`)
+			})
+
+			socket.on("join_room", ({ roomId }: { roomId: string }) => {
+				if (!rooms[roomId]) {
+					socket.emit("room_error", { error: "Room does not exist." })
+					return
+				}
+
+				socket.join(roomId)
 
 				const character = {
 					id: uuid,
 					sprite: "cat",
 					x: Math.random() * 400,
 					y: Math.random() * 300
-				};
-
-				// store metadata
-				if (!rooms[roomId]){
-					rooms[roomId] = {players : {}, map : "default"}
 				}
 
-				rooms[roomId].players[uuid] = character;
+				rooms[roomId].players[uuid] = character
 
-				// send the new player their own character
-				socket.emit("character_assigned", character);
+				if (rooms[roomId].emptyTimer) {
+					clearTimeout(rooms[roomId].emptyTimer!)
+					rooms[roomId].emptyTimer = null
+				}
 
-				// send existing players to the new player
-				socket.emit("existing_players", rooms[roomId].players);
+				socket.emit("character_assigned", character)
+				socket.emit("existing_players", rooms[roomId].players)
+				socket.emit("map_info", { map: rooms[roomId].map })
+				socket.to(roomId).emit("player_joined", character)
+				io.emit("room_list", getRoomList())
+			})
 
-				// Modify mapinfo
-				socket.emit("map_info", {map : rooms[roomId].map})
+			socket.on("move", ({ roomId, x, y }: { roomId: string, x: number, y: number }) => {
+				if (!rooms[roomId] || !rooms[roomId].players[uuid]) return
 
-				// notify others
-				socket.to(roomId).emit("player_joined", character);
-			});
+				const clampedX = Math.max(0, Math.min(800, x))
+				const clampedY = Math.max(0, Math.min(600, y))
 
-			socket.on("move", ({ roomId, x, y }) => {
-				if (!rooms[roomId] || !rooms[roomId].players[uuid]) return;
+				rooms[roomId].players[uuid].x = clampedX
+				rooms[roomId].players[uuid].y = clampedY
 
-				rooms[roomId].players[uuid].x = x;
-				rooms[roomId].players[uuid].y = y;
+				socket.to(roomId).emit("player_moved", { id: uuid, x: clampedX, y: clampedY })
+			})
 
-				socket.to(roomId).emit("player_moved", {
-					id: uuid,
-					x,
-					y
-				});
-			});
-
-			socket.on("chat_message", ({roomId, message}) =>{
-				io.to(roomId).emit("chat_message", {
-					sender : uuid,
-					text : message
-				})	
+			socket.on("chat_message", ({ roomId, message }: { roomId: string, message: string }) => {
+				if (!rooms[roomId]) return
+				io.to(roomId).emit("chat_message", { sender: uuid, text: message })
 			})
 
 			socket.on("disconnect", () => {
 				for (const roomId in rooms) {
 					if (rooms[roomId].players[uuid]) {
-						delete rooms[roomId].players[uuid];
-						socket.to(roomId).emit("player_left", uuid);
+						delete rooms[roomId].players[uuid]
+						socket.to(roomId).emit("player_left", uuid)
+						resetEmptyTimer(io, roomId)
+						io.emit("room_list", getRoomList())
 					}
 				}
-			});
-		});
-
-		// io.on('connection', (socket) => {
-		// 	// Exclude sender
-		// 	// socket.emit('hello', 'world'); 
-		// 	// Incllude sender
-		// 	// io.emit('chat message', msg);
-		// 	console.log('User connected')
-
-		// 	socket.on('join_room', ({userId, roomId})=>{
-		// 		socket.join(roomId)
-		// 		const character = "hi" // Assign character
-		// 		socket.emit('character_assigned')
-
-		// 		socket.to(roomId).emit('player_joined',{
-		// 			userId,
-		// 			character
-		// 		})
-
-		// 	})
-
-		// 	socket.emit('eventFromServer', 'Hello from production 👋')
-
-		// 	socket.on('chat_message', (msg) => {
-		// 		io.emit('chat_message', msg);
-		// 	})
-
-		// 	socket.on('disconnect', () => {
-		// 		console.log('User disconnected')
-		// 	})
-		// })
+			})
+		})
 	}
 }
 
-// export default defineConfig({ plugins: [tailwindcss(), sveltekit(), webSocketServer] });
- export default defineConfig({ plugins: [tailwindcss(), sveltekit(), webSocketServer] });
+export default defineConfig({ plugins: [tailwindcss(), sveltekit(), webSocketServer] })
