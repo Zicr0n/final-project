@@ -80,7 +80,7 @@
 
 h1 {
     margin-bottom: 24px;
-}
+}   
 
 .create {
     display: flex;

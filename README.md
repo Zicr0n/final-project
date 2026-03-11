@@ -7,7 +7,7 @@ NAME_OF_PROJECT
 Internet Dwellers
 
 ### Huvudsyfte:
-Chatta, socialisera, spela, uttrycka
+Chatta, socialisera, spela
 
 ### Varför valde jag detta:
 Främst för att lära mig websockets, men också för att multiplayer är kul.
@@ -19,41 +19,36 @@ Club Penguin, Discord, Whatsapp
 
 ## 1. Dynamisk routing
 **Vilka sidor/routes kommer jag ha:**
-- / (startsida)
-- /rooms (lista över alla rum)
-- /rooms/[id] (specifikt rum med realtidsdata)
-- /profile/[username] (publik användarprofil)
+- / (startsida, publik)
+- /rooms 
+- /rooms/[roomId] (specifikt rum med realtidsdata)
+- /profile/[id] (publik användarprofil och galleri)
 - /settings (kontoinställningar)
-- /gallery (profilgalleri)
-- /about, /login, /register (publika infosidor)
+- /character (character customization page)
+- /login, /blog, /contact (public pages)
 
 **Exempel på dynamiska parametrar:** /rooms/[id], /profile/[username]
 
 ## 2. Databasmodeller
 **Vilka huvudsakliga data-typer behöver jag:**
-- User (name, email, password_hash, profile_pic, bio, created_at)
-- Room (name, description, owner_id, max_players, is_public, created_at)
-- RoomMember (room_id, user_id, joined_at, role)
-- FriendRequest (sender_id, receiver_id, status, created_at)
+- User (name, email, password_hash, profile_pic, description, created_at)
 - GalleryImage (user_id, url, caption, uploaded_at)
 
 ## 3. Databasrelationer
 **Hur är min data kopplad:**
-- User har många Rooms (one-to-many, som ägare)
-- User tillhör många Rooms via RoomMember (many-to-many)
 - User har många GalleryImages (one-to-many)
-- User har många FriendRequests som sender och receiver (one-to-many, self-referencing)
+- User
 
 ## 4. Inloggning
 **Vad kan inloggade användare göra som ej-inloggade inte kan:**
 - Rum (gå med, skapa, interagera i realtid)
 - Profiler (redigera sin egen, skicka vänförfrågningar)
-- Galleri (ladda upp och hantera egna bilder)
 - Inställningar (ändra lösenord, email, profilbild)
+- Character Customization
 
 ## 5. Kryptering
 **Vilken känslig data behöver skyddas:**
-- Lösenord (bcrypt/argon2 via BetterAuth)
+- Lösenord BetterAuth
 - Session tokens
 - Email-adresser
 
@@ -80,7 +75,7 @@ Club Penguin, Discord, Whatsapp
 **Hur organiserar jag mina layout groups:**
 - `(public)` — About, Login, Register, Blog (ingen auth krävs)
 - `(authenticated)` — Rooms, Profiles, Gallery, Settings (kräver aktiv session)
-- Annars redirect till login
+- Annars redirect till login / rooms
 
 ## 11. Authentication tokens
 **Hur hanterar jag säkra sessioner:**
@@ -98,3 +93,5 @@ Club Penguin, Discord, Whatsapp
 <b>Layout groups</b> - Olika layouts för olika grupper av routes.\
 <b>Authentication tokens</b> - Säker session-hantering
 
+### INSPO 
+<a href="https://discord.com/"> discord.com </a>

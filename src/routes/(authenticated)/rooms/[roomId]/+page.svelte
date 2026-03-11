@@ -162,7 +162,7 @@
         socket.emit("chat_message", { roomId, message: text });
     }
 </script>
-
+<main class="p-4">
 {#if error_room}
     <div class="error-screen">
         <p>⚠️ {error_message || "Something went wrong."}</p>
@@ -207,7 +207,7 @@
         </div>
     </div>
 {/if}
-
+</main>
 <style>
 .room {
     position: relative;

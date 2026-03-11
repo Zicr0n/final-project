@@ -7,4 +7,6 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-{@render children()}
+<main class="h-screen">
+	{@render children()}
+</main>

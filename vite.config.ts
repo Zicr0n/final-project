@@ -3,7 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { type ViteDevServer, defineConfig } from 'vite';
 import { Server } from 'socket.io';
 
-const EMPTY_ROOM_TIMEOUT = 5 * 60 * 1000 // 5 minutes in ms
+const EMPTY_ROOM_TIMEOUT = 1 * 60 * 1000 // 1 minutes in ms
 
 const rooms: Record<string, {
 	name: string,
