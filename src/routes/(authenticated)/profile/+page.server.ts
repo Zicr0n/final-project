@@ -1,8 +1,8 @@
-import type { LayoutServerLoad } from './$types';
+import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 
-export const load: LayoutServerLoad = async (event) => {
+export const load: PageServerLoad = async (event) => {
     const session = await auth.api.getSession({
         headers: event.request.headers
     });
@@ -11,7 +11,5 @@ export const load: LayoutServerLoad = async (event) => {
         throw redirect(307, '/login');
     }
 
-    return {
-        user: session.user
-    };
+    throw redirect(307, `/profile/${session.user.id}`);
 };
