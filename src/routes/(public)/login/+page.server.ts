@@ -14,19 +14,19 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	signInEmail: async (event) => {
 		const formData = await event.request.formData();
-		const email = formData.get('email')?.toString() ?? '';
+		const username = formData.get('username')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 
 		try {
-			await auth.api.signInEmail({
+			await auth.api.signInUsername({
 				body: {
-					email,
+					username: username,
 					password,
 					callbackURL: '/auth/verification-success'
 				}
 			});
 		} catch (error) {
-			console.log(error)
+			console.log(error);
 			if (error instanceof APIError) {
 				return fail(400, { message: error.message || 'Signin failed' });
 			}
@@ -36,23 +36,36 @@ export const actions: Actions = {
 		return redirect(302, '/rooms');
 	},
 	signUpEmail: async (event) => {
-		
 		const formData = await event.request.formData();
 		const email = formData.get('email')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 		const name = formData.get('name')?.toString() ?? '';
+		const username = formData.get('username')?.toString() ?? '';
 
 		try {
+			const response = await auth.api.isUsernameAvailable({
+				body: {
+					username: username // required
+				}
+			});
+
+			if (response?.available) {
+				console.log('Username is available');
+			} else {
+				return Error('Username Already Exists!');
+			}
+
 			await auth.api.signUpEmail({
 				body: {
 					email,
 					password,
 					name,
+					username: username,
+					displayUsername: username,
 					callbackURL: '/auth/verification-success'
 				}
 			});
 		} catch (error) {
-			console.log(error)
 			if (error instanceof APIError) {
 				return fail(400, { message: error.message || 'Registration failed' });
 			}
