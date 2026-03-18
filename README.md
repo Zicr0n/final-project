@@ -121,5 +121,5 @@ Club Penguin, Discord, Whatsapp
 <b>Authentication tokens</b> - Säker session-hantering
 
 ### INSPO
-
+1
 <a href="https://discord.com/"> discord.com </a>

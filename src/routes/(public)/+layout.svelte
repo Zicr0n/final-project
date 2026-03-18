@@ -1,5 +1,6 @@
 <script lang="ts">
 	let { children } = $props();
+	import './layout.css';
 </script>
 
 <nav class="flex h-16 w-full justify-between bg-red-500 px-8">

@@ -77,7 +77,7 @@
 		<button type="submit">Change Username</button>
 	</form>
 
-	<form method="POST" action="?/changePassword" class="input" onsubmit={handleSubmit}>
+	<form method="POST" action="?/changePassword" onsubmit={handleSubmit}>
 		<label for="currentPassword">Current Password</label>
 		<input minlength="8" bind:value={currentPassword} name="currentPassword" type="password" />
 

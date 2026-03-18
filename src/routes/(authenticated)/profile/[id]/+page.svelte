@@ -6,8 +6,9 @@
 	<section class="flex h-50 w-full">
 		<img src="src" alt="profile" class="w-50 bg-red-500" />
 		<div class="w-full bg-green-500 p-4">
-			<h1 class="text-6xl">{data.profileUser.username}</h1>
+			<h1 class="text-6xl">{data.profileUser?.username}</h1>
 			<p>Description</p>
+			<a href={"/profile/" + data.profileUser?.id +  "/friends"}>Friends</a>
 		</div>
 	</section>
 
