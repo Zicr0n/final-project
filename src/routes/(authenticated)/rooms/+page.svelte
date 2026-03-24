@@ -6,6 +6,7 @@
 	let socket;
 	let roomList = $state([]);
 	let roomName = $state('');
+	let maxPlayers = $state(10);
 	let error = $state('');
 
 	onMount(() => {
@@ -36,8 +37,18 @@
 			error = 'Room name cannot be empty.';
 			return;
 		}
-		socket.emit('create_room', { name: roomName.trim() });
+
+		if(maxPlayers > 50 || maxPlayers < 1){
+			error = 'Max room size is 50...'
+			return;
+		}
+
+		socket.emit('create_room', { name: roomName.trim(), maxPlayers : maxPlayers });
 		roomName = '';
+	}
+
+	function preventDefault(e){
+		e.preventDefault;
 	}
 </script>
 
@@ -50,6 +61,17 @@
 			placeholder="Room name..."
 			onkeydown={(e) => e.key === 'Enter' && createRoom()}
 		/>
+		<input 
+			type="number" 
+			name="roomSize"
+			min="2" 
+			step="1" 
+			max="50"
+			required 
+			onkeydown={preventDefault}
+			onpaste={preventDefault}
+			bind:value={maxPlayers}
+			>
 		<button onclick={createRoom}>Create room</button>
 		{#if error}
 			<p class="error">{error}</p>
@@ -61,10 +83,10 @@
 			<p class="empty">No rooms yet. Create one!</p>
 		{:else}
 			{#each roomList as room}
-				<a class="room-card" href="/rooms/{room.roomId}">
+				<a class="room-card" href={`/rooms/${room.roomId}`}>
 					<span class="room-name">{room.name}</span>
 					<span class="room-count"
-						>{room.playerCount} player{room.playerCount !== 1 ? 's' : ''}</span
+						>{room.playerCount}/{room.maxPlayers} players</span
 					>
 				</a>
 			{/each}

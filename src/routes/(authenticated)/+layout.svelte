@@ -6,7 +6,6 @@
 
 
 	function OnSearch(event){
-		console.log("oraroaoraorar")
 		event.preventDefault();
 		goto(`/search/users?q=${encodeURIComponent(search)}`)
 	}

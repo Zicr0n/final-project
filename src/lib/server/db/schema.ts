@@ -92,9 +92,9 @@ export const character = pgTable('character', {
 		.references(() => user.id, { onDelete: 'cascade' })
 		.unique(),
 	bodyColor: varchar('body_color', { length: 7 }).notNull().default('#ffffff'),
-	hatId: integer('hat_id'),
-	shirtId: integer('shirt_id'),
-	eyesId: integer('eyes_id'),
+	hatId: integer('hat_id').default(0),
+	shirtId: integer('shirt_id').default(0),
+	eyesId: integer('eyes_id').default(0),
 	updatedAt: timestamp('updated_at')
 		.defaultNow()
 		.$onUpdate(() => new Date())
@@ -123,6 +123,12 @@ export const friendRequest = pgTable('friend_request', {
 		.references(() => user.id, { onDelete: 'cascade' }),
 	status: friendStatusEnum('status').notNull().default('pending'),
 	createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+export const room = pgTable('room', {
+	id : integer().primaryKey().generatedAlwaysAsIdentity(),
+	createdAt : timestamp('created_at').defaultNow().notNull(),
+	maxPlayers : integer("maxPlayers")
 });
 
 export const userRelations = relations(user, ({ many, one }) => ({

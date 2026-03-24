@@ -69,7 +69,7 @@
 	<form method="POST" action="?/changeUsername">
 		<input
 			bind:value={newUsername}
-			placeholder={data.user.name}
+			placeholder={data.user.username}
 			maxlength="16"
 			minlength="1"
 			name="username"

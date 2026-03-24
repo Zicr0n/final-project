@@ -15,6 +15,7 @@
 	let error_message = $state('');
 	let lastFrame = performance.now();
 	let chatInput = $state('');
+	let map = $state('default')
 
 	// Click-to-move: where the player wants to go
 	let targetX = $state(200);
@@ -80,7 +81,12 @@
 		requestAnimationFrame(animate);
 
 		socket = io();
+
 		socket.emit('join_room', { roomId });
+
+		socket.on('map_assigned', (map) =>{
+			map = map;
+		})
 
 		socket.on('character_assigned', (character) => {
 			myId.set(character.id);
@@ -162,6 +168,8 @@
 		socket.emit('chat_message', { roomId, message: text });
 	}
 </script>
+
+<h1 class="h1">MAP : {map}</h1>
 
 <main class="p-4">
 	{#if error_room}

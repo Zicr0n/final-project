@@ -3,6 +3,8 @@ import type { Actions } from './$types';
 import type { PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { APIError } from 'better-auth/api';
+import { db } from '$lib/server/db';
+import { character } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async (event) => {
 	if (event.locals.user) {
@@ -55,15 +57,17 @@ export const actions: Actions = {
 				return Error('Username Already Exists!');
 			}
 
-			await auth.api.signUpEmail({
-				body: {
-					email,
-					password,
-					name,
-					username: username,
-					displayUsername: username,
-					callbackURL: '/auth/verification-success'
-				}
+			// get the user you just created
+			const newUser = await db.query.user.findFirst({
+				where: (u, { eq }) => eq(u.email, email)
+			});
+
+			if (!newUser) {
+				throw new Error('User not found after signup');
+			}
+
+			await db.insert(character).values({
+				userId: newUser.id
 			});
 		} catch (error) {
 			if (error instanceof APIError) {

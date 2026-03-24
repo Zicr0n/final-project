@@ -2,8 +2,10 @@ import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
 import { ilike } from 'drizzle-orm';
+import { ne, and } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, params, parent }) => {
+    const data = await parent()
     const query = url.searchParams.get("q")?.trim() ?? "";
 
     if (!query) return { results: [], query: "" };
@@ -14,7 +16,7 @@ export const load: PageServerLoad = async ({ url }) => {
         image: user.image,
     })
     .from(user)
-    .where(ilike(user.username, `%${query}%`))
+    .where(and(ilike(user.username, `%${query}%`),  ne(user.id, data.user.id)) )
     .limit(20);
 
     return { results, query };
