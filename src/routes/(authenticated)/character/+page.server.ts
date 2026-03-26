@@ -1,28 +1,28 @@
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
-import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { character, user } from '$lib/server/db/schema';
-import type { Actions } from './$types';
-import { eq } from 'drizzle-orm';
-import { fail } from '@sveltejs/kit';
+import { character } from '$lib/server/db/schema';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
-    const { user } = await parent();
+export const load: PageServerLoad = async ({ parent }) => {
+	const { user } = await parent();
 
-   const char = await db.query.character.findFirst({
-        where: (c, { eq }) => eq(c.userId, user.id)
-    });
+	let char = await db.query.character.findFirst({
+		where: (c, { eq }) => eq(c.userId, user.id)
+	});
 
-    if (!char) {
-        await db.insert(character).values({
-            userId: user.id
-        });
-    }
+	if (!char) {
+		await db.insert(character).values({
+			userId: user.id,
+			hatId: 0,
+			shirtId: 0,
+			eyesId: 0
+		});
 
-    return { user: user, char : char };
+		char = await db.query.character.findFirst({
+			where: (c, { eq }) => eq(c.userId, user.id)
+		});
+	}
+
+	return { user, char };
 };
 
-export const actions: Actions = {
-
-}
+export const actions = {};

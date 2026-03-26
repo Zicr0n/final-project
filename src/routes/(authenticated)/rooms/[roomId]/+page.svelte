@@ -1,4 +1,3 @@
-<!-- src/routes/rooms/[roomId]/+page.svelte -->
 <script>
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -15,7 +14,6 @@
 	let chatInput = $state('');
 	let map = $state('default');
 
-	// Click-to-move
 	let targetX = $state(200);
 	let targetY = $state(200);
 	let x = $state(200);
@@ -25,13 +23,11 @@
 	const mapWidth = 800;
 	const mapHeight = 600;
 
-	// Click marker
 	let markerX = $state(-999);
 	let markerY = $state(-999);
 	let markerVisible = $state(false);
 	let markerTimeout;
 
-	// ── Animation loop ────────────────────────────────────────────────────────
 	function animate(now) {
 		const dt = (now - lastFrame) / 1000;
 		lastFrame = now;
@@ -48,36 +44,54 @@
 			const id = get(myId);
 			if (id && socket) {
 				players.update((p) => {
-					if (p[id]) p[id] = { ...p[id], x, y };
-					return p;
+					const next = { ...p };
+					if (next[id]) next[id] = { ...next[id], x, y };
+					return next;
 				});
 				socket.emit('move', { roomId, x, y });
 			}
 		}
 
 		players.update((p) => {
-			for (const id in p) {
-				const player = p[id];
+			const next = { ...p };
+
+			for (const id in next) {
+				const player = next[id];
 				if (player.targetX !== undefined) {
-					player.x += (player.targetX - player.x) * 10 * dt;
-					player.y += (player.targetY - player.y) * 10 * dt;
+					next[id] = {
+						...player,
+						x: player.x + (player.targetX - player.x) * 10 * dt,
+						y: player.y + (player.targetY - player.y) * 10 * dt
+					};
 				}
 			}
-			return p;
+
+			return next;
 		});
 
 		requestAnimationFrame(animate);
 	}
 
-	// ── Socket setup ──────────────────────────────────────────────────────────
 	onMount(() => {
 		requestAnimationFrame(animate);
 
-		socket = io();
+		socket = io({
+			auth: {
+				userId: data.user.id,
+				username: data.user.username
+			}
+		});
+
 		socket.emit('join_room', { roomId });
 
 		socket.on('map_assigned', (assignedMap) => {
 			map = assignedMap;
+		});
+
+		socket.on('room_error', ({ error }) => {
+			console.error(error);
+			alert(error)
+			goto('/rooms');
 		});
 
 		socket.on('character_assigned', (character) => {
@@ -90,7 +104,7 @@
 		});
 
 		socket.on('existing_players', (existing) => {
-			players.set(existing);
+			players.update((p) => ({ ...existing, ...p }));
 		});
 
 		socket.on('player_joined', (character) => {
@@ -99,26 +113,62 @@
 
 		socket.on('player_moved', ({ id, x: nx, y: ny }) => {
 			players.update((p) => {
-				if (p[id]) {
-					p[id].targetX = nx;
-					p[id].targetY = ny;
-				}
-				return p;
+				if (!p[id]) return p;
+				return {
+					...p,
+					[id]: {
+						...p[id],
+						targetX: nx,
+						targetY: ny
+					}
+				};
 			});
 		});
 
 		socket.on('player_left', (id) => {
 			players.update((p) => {
-				delete p[id];
-				return p;
+				const next = { ...p };
+				delete next[id];
+				return next;
 			});
 		});
 
 		socket.on('chat_message', ({ sender, text }) => {
 			chat.update((c) => [...c, { sender, text }]);
+
+			players.update((p) => {
+				const next = { ...p };
+
+				for (const id in next) {
+					if (next[id].username === sender) {
+						next[id] = {
+							...next[id],
+							bubbleText: text
+						};
+
+						setTimeout(() => {
+							players.update((current) => {
+								if (!current[id]) return current;
+								if (current[id].bubbleText !== text) return current;
+
+								return {
+									...current,
+									[id]: {
+										...current[id],
+										bubbleText: ''
+									}
+								};
+							});
+						}, 3000);
+
+						break;
+					}
+				}
+
+				return next;
+			});
 		});
 
-		// room_closed is still useful — server can force-close a room
 		socket.on('room_closed', () => {
 			goto('/rooms');
 		});
@@ -131,7 +181,6 @@
 		myId.set(null);
 	});
 
-	// ── Click to move ─────────────────────────────────────────────────────────
 	function handleClick(e) {
 		const rect = e.currentTarget.getBoundingClientRect();
 		const clickX = Math.max(0, Math.min(mapWidth, e.clientX - rect.left));
@@ -147,10 +196,9 @@
 		markerTimeout = setTimeout(() => (markerVisible = false), 600);
 	}
 
-	// ── Chat ──────────────────────────────────────────────────────────────────
 	function sendMessage() {
 		if (!chatInput.trim()) return;
-		const text = chatInput;
+		const text = chatInput.trim().slice(0, 120);
 		chatInput = '';
 		socket.emit('chat_message', { roomId, message: text });
 	}
@@ -159,16 +207,22 @@
 <h1 class="h1">{data.room.name} — MAP: {map}</h1>
 
 <main class="p-4">
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<div class="room" onclick={handleClick}>
+	<div class="room" onclick={handleClick} onkeydown={() => {}} role="button" tabindex="0">
 		<div class="player" style="left:{x}px; top:{y}px;">
+			{#if $players[$myId]?.bubbleText}
+				<div class="chat-bubble">{$players[$myId].bubbleText}</div>
+			{/if}
 			<img src="/player.webp" alt="sprite" />
+			<div class="name-tag">{data.user.username}</div>
 		</div>
 
 		{#each Object.values($players).filter((p) => p.id !== $myId) as p}
 			<div class="player" style="left:{p.x}px; top:{p.y}px;">
+				{#if p.bubbleText}
+					<div class="chat-bubble">{p.bubbleText}</div>
+				{/if}
 				<img src="/player.webp" alt="sprite" />
+				<div class="name-tag">{p.username}</div>
 			</div>
 		{/each}
 
@@ -180,7 +234,7 @@
 	<div class="chat">
 		<ul class="messages">
 			{#each $chat as msg}
-				<li><strong>{msg.sender.slice(0, 6)}</strong>: {msg.text}</li>
+				<li><strong>{msg.sender}</strong>: {msg.text}</li>
 			{/each}
 		</ul>
 		<div class="chat-input">
@@ -216,6 +270,20 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
+	}
+
+	.name-tag {
+		position: absolute;
+		left: 50%;
+		bottom: 100%;
+		transform: translateX(-50%);
+		margin-bottom: 6px;
+		padding: 2px 6px;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.7);
+		color: white;
+		font-size: 12px;
+		white-space: nowrap;
 	}
 
 	.marker {
@@ -281,5 +349,36 @@
 		border: none;
 		border-radius: 6px;
 		cursor: pointer;
+	}
+
+	.chat-bubble {
+		position: absolute;
+		left: 50%;
+		bottom: calc(100% + 28px);
+		transform: translateX(-50%);
+		max-width: 180px;
+		padding: 6px 10px;
+		border-radius: 12px;
+		background: white;
+		color: #111;
+		font-size: 12px;
+		line-height: 1.2;
+		text-align: center;
+		white-space: normal;
+		word-break: break-word;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+		pointer-events: none;
+		z-index: 10;
+	}
+
+	.chat-bubble::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 100%;
+		transform: translateX(-50%);
+		border-width: 6px;
+		border-style: solid;
+		border-color: white transparent transparent transparent;
 	}
 </style>

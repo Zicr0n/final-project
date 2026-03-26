@@ -19,7 +19,7 @@ export const GET: RequestHandler = async () => {
 	return json(rooms);
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request , locals}) => {
 	const body = await request.json();
 	const name = typeof body.name === 'string' ? body.name.trim() : '';
 	const maxPlayers = Number(body.maxPlayers);

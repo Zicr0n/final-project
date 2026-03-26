@@ -74,6 +74,8 @@ export const actions: Actions = {
 				return fail(400, { message: error.message || 'Registration failed' });
 			}
 
+			console.log(error)
+
 			return fail(500, { message: 'Unexpected error' });
 		}
 
