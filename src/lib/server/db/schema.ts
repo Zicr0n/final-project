@@ -125,12 +125,16 @@ export const friendRequest = pgTable('friend_request', {
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
+// ── Room ──────────────────────────────────────────────────────────────────────
 export const room = pgTable('room', {
-	id : integer().primaryKey().generatedAlwaysAsIdentity(),
-	createdAt : timestamp('created_at').defaultNow().notNull(),
-	maxPlayers : integer("maxPlayers")
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
+	name: text('name').notNull(),
+	maxPlayers: integer('max_players').notNull().default(10),
+	playerCount: integer('player_count').notNull().default(0),
+	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
+// ── Relations ─────────────────────────────────────────────────────────────────
 export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
 	accounts: many(account),
@@ -153,7 +157,7 @@ export const characterRelations = relations(character, ({ one }) => ({
 }));
 
 export const galleryImageRelations = relations(galleryImage, ({ one }) => ({
-    user: one(user, { fields: [galleryImage.userId], references: [user.id] }),
+	user: one(user, { fields: [galleryImage.userId], references: [user.id] })
 }));
 
 export const friendRequestRelations = relations(friendRequest, ({ one }) => ({

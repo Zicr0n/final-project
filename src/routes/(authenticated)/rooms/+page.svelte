@@ -1,54 +1,58 @@
+<!-- src/routes/(authenticated)/rooms/+page.svelte -->
 <script>
-	import { onMount, onDestroy } from 'svelte';
-	import io from 'socket.io-client';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 
-	let socket;
 	let roomList = $state([]);
 	let roomName = $state('');
 	let maxPlayers = $state(10);
 	let error = $state('');
+	let loading = $state(false);
 
-	onMount(() => {
-		socket = io();
-
-		// Receive full room list (on connect + any change)
-		socket.on('room_list', (rooms) => {
-			roomList = rooms;
+	async function fetchRooms() {
+		const res = await fetch('/rooms', {
+			headers: { Accept: 'application/json' }
 		});
+		if (res.ok) roomList = await res.json();
+	}
 
-		// After creating a room, navigate straight into it
-		socket.on('room_created', ({ roomId }) => {
-			goto(`/rooms/${roomId}`);
-		});
+	onMount(fetchRooms);
 
-		socket.on('room_error', ({ error: err }) => {
-			error = err;
-		});
-	});
-
-	onDestroy(() => {
-		socket?.disconnect();
-	});
-
-	function createRoom() {
+	async function createRoom() {
 		error = '';
 		if (!roomName.trim()) {
 			error = 'Room name cannot be empty.';
 			return;
 		}
-
-		if(maxPlayers > 50 || maxPlayers < 1){
-			error = 'Max room size is 50...'
+		if (maxPlayers > 50 || maxPlayers < 1) {
+			error = 'Max room size is 50.';
 			return;
 		}
 
-		socket.emit('create_room', { name: roomName.trim(), maxPlayers : maxPlayers });
-		roomName = '';
+		loading = true;
+		try {
+			const res = await fetch('/rooms', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify({ name: roomName.trim(), maxPlayers })
+			});
+
+			const data = await res.json();
+
+			if (!res.ok) {
+				error = data.error ?? 'Failed to create room.';
+				return;
+			}
+
+			roomName = '';
+			goto(`/rooms/${data.roomId}`);
+		} finally {
+			loading = false;
+		}
 	}
 
-	function preventDefault(e){
-		e.preventDefault;
+	function blockBadKeys(e) {
+		if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault();
 	}
 </script>
 
@@ -61,18 +65,19 @@
 			placeholder="Room name..."
 			onkeydown={(e) => e.key === 'Enter' && createRoom()}
 		/>
-		<input 
-			type="number" 
+		<input
+			type="number"
 			name="roomSize"
-			min="2" 
-			step="1" 
+			min="2"
+			step="1"
 			max="50"
-			required 
-			onkeydown={preventDefault}
-			onpaste={preventDefault}
+			required
+			onkeydown={blockBadKeys}
 			bind:value={maxPlayers}
-			>
-		<button onclick={createRoom}>Create room</button>
+		/>
+		<button onclick={createRoom} disabled={loading}>
+			{loading ? 'Creating…' : 'Create room'}
+		</button>
 		{#if error}
 			<p class="error">{error}</p>
 		{/if}
@@ -82,12 +87,10 @@
 		{#if roomList.length === 0}
 			<p class="empty">No rooms yet. Create one!</p>
 		{:else}
-			{#each roomList as room}
-				<a class="room-card" href={`/rooms/${room.roomId}`}>
-					<span class="room-name">{room.name}</span>
-					<span class="room-count"
-						>{room.playerCount}/{room.maxPlayers} players</span
-					>
+			{#each roomList as r}
+				<a class="room-card" href={`/rooms/${r.roomId}`} data-sveltekit-preload-data="off">
+					<span class="room-name">{r.name}</span>
+					<span class="room-count">{r.playerCount}/{r.maxPlayers} players</span>
 				</a>
 			{/each}
 		{/if}
@@ -132,8 +135,13 @@
 		cursor: pointer;
 	}
 
-	.create button:hover {
+	.create button:hover:not(:disabled) {
 		background: #4338ca;
+	}
+
+	.create button:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	.error {
