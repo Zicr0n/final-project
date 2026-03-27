@@ -1,104 +1,148 @@
-import express from 'express'
-import { createServer } from 'http'
-import { Server } from 'socket.io'
-import { handler } from '../build/handler.js'
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { handler } from '../build/handler.js';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { room } from '../src/lib/db/schema.js';
+import { eq, sql } from 'drizzle-orm';
+import pg from 'pg';
 
-const port = process.env.PORT || 3000
-const rooms = {
-	lobby : {
-		players : {},
-		map : "plaza"
-	},
-	dungeon: {
-		players : {},
-		map : "cave"
-	},
-	miku: {
-		players : {},
-		map : "miku"
+const { Pool } = pg;
+
+const port = process.env.PORT || 3000;
+const EMPTY_ROOM_TIMEOUT = 5 * 60 * 1000;
+
+// In-memory player state only — room metadata lives in the DB
+// rooms[roomId] = { players: {}, emptyTimer: null }
+const rooms = {};
+
+const app = express();
+const server = createServer(app);
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle(pool);
+
+const io = new Server(server, {
+	cors: { origin: '*' },
+	connectionStateRecovery: {}
+});
+
+// ── Room helpers ──────────────────────────────────────────────────────────────
+
+async function closeRoom(roomId) {
+	if (!rooms[roomId]) return;
+	console.log(`Room ${roomId} closed due to inactivity.`);
+	io.to(roomId).emit('room_closed', { roomId });
+	io.socketsLeave(roomId);
+	delete rooms[roomId];
+	await db.delete(room).where(eq(room.id, roomId));
+}
+
+function resetEmptyTimer(roomId) {
+	if (!rooms[roomId]) return;
+	if (rooms[roomId].emptyTimer) {
+		clearTimeout(rooms[roomId].emptyTimer);
+		rooms[roomId].emptyTimer = null;
+	}
+	if (Object.keys(rooms[roomId].players).length === 0) {
+		rooms[roomId].emptyTimer = setTimeout(() => closeRoom(roomId), EMPTY_ROOM_TIMEOUT);
 	}
 }
 
+async function updatePlayerCount(roomId) {
+	const count = rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0;
+	await db
+		.update(room)
+		.set({ playerCount: count })
+		.where(eq(room.id, roomId));
+}
 
-const app = express()
-const server = createServer(app)
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
 
-const io = new Server(server, {
-  cors: {
-    origin: '*', // fine for now, restrict later
-  },
-  connectionStateRecovery : {}
-})
+io.on('connection', (socket) => {
+	const uuid = crypto.randomUUID();
 
-io.on("connection", socket => {
-			const uuid = crypto.randomUUID();
+	// ── Join room ─────────────────────────────────────────────────────────────
+	socket.on('join_room', async ({ roomId }) => {
+		// Validate room exists in DB
+		const [found] = await db
+			.select({ id: room.id, maxPlayers: room.maxPlayers })
+			.from(room)
+			.where(eq(room.id, roomId));
 
-			socket.on("join_room", ({ roomId }) => {
-				if(!rooms[roomId]){
-					socket.emit("room_error", {error : "Room does not exist."})
-					return;
-				}
+		if (!found) {
+			socket.emit('room_error', { error: 'Room does not exist.' });
+			return;
+		}
 
-				socket.join(roomId);
+		// Initialise in-memory state for this room if first player
+		if (!rooms[roomId]) {
+			rooms[roomId] = { players: {}, emptyTimer: null };
+		}
 
-				const character = {
-					id: uuid,
-					sprite: "cat",
-					x: Math.random() * 400,
-					y: Math.random() * 300
-				};
+		// Enforce max players
+		if (Object.keys(rooms[roomId].players).length >= found.maxPlayers) {
+			socket.emit('room_error', { error: 'Room is full.' });
+			return;
+		}
 
-				// store metadata
-				if (!rooms[roomId]){
-					rooms[roomId] = {players : {}, map : "default"}
-				}
+		socket.join(roomId);
 
-				rooms[roomId].players[uuid] = character;
+		const character = {
+			id: uuid,
+			sprite: 'cat',
+			x: Math.random() * 400,
+			y: Math.random() * 300
+		};
 
-				// send the new player their own character
-				socket.emit("character_assigned", character);
+		rooms[roomId].players[uuid] = character;
 
-				// send existing players to the new player
-				socket.emit("existing_players", rooms[roomId].players);
+		if (rooms[roomId].emptyTimer) {
+			clearTimeout(rooms[roomId].emptyTimer);
+			rooms[roomId].emptyTimer = null;
+		}
 
-				// Modify mapinfo
-				socket.emit("map_info", {map : rooms[roomId].map})
+		await updatePlayerCount(roomId);
 
-				// notify others
-				socket.to(roomId).emit("player_joined", character);
-			});
+		socket.emit('character_assigned', character);
+		socket.emit('existing_players', rooms[roomId].players);
+		socket.to(roomId).emit('player_joined', character);
+	});
 
-			socket.on("move", ({ roomId, x, y }) => {
-				if (!rooms[roomId] || !rooms[roomId].players[uuid]) return;
+	// ── Move ──────────────────────────────────────────────────────────────────
+	socket.on('move', ({ roomId, x, y }) => {
+		if (!rooms[roomId]?.players[uuid]) return;
 
-				rooms[roomId].players[uuid].x = x;
-				rooms[roomId].players[uuid].y = y;
+		const clampedX = Math.max(0, Math.min(800, x));
+		const clampedY = Math.max(0, Math.min(600, y));
 
-				socket.to(roomId).emit("player_moved", {
-					id: uuid,
-					x,
-					y
-				});
-			});
+		rooms[roomId].players[uuid].x = clampedX;
+		rooms[roomId].players[uuid].y = clampedY;
 
-			socket.on("chat_message", ({roomId, message}) =>{
-				io.to(roomId).emit("chat_message", {
-					sender : uuid,
-					text : message
-				})	
-			})
+		socket.to(roomId).emit('player_moved', { id: uuid, x: clampedX, y: clampedY });
+	});
 
-			socket.on("disconnect", () => {
-				for (const roomId in rooms) {
-					if (rooms[roomId].players[uuid]) {
-						delete rooms[roomId].players[uuid];
-						socket.to(roomId).emit("player_left", uuid);
-					}
-				}
-			});
-		});
-app.use(handler)
+	// ── Chat ──────────────────────────────────────────────────────────────────
+	socket.on('chat_message', ({ roomId, message }) => {
+		if (!rooms[roomId]) return;
+		io.to(roomId).emit('chat_message', { sender: uuid, text: message });
+	});
+
+	// ── Disconnect ────────────────────────────────────────────────────────────
+	socket.on('disconnect', async () => {
+		for (const roomId in rooms) {
+			if (rooms[roomId].players[uuid]) {
+				delete rooms[roomId].players[uuid];
+				socket.to(roomId).emit('player_left', uuid);
+				resetEmptyTimer(roomId);
+				await updatePlayerCount(roomId);
+			}
+		}
+	});
+});
+
+app.use(handler);
 
 server.listen(port, () => {
-  console.log(`Server running on port ${port}`)
-})
+	console.log(`Server running on port ${port}`);
+});
