@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { room } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+export const load: PageServerLoad = async ({ params, parent, url }) => {
 	const { user } = await parent();
 	const roomId = Number(params.roomId);
 
@@ -29,6 +29,7 @@ export const load: PageServerLoad = async ({ params, parent }) => {
 	return {
 		roomId,
 		room: found,
-		user
+		user,
+		password: url.searchParams.get('password') ?? ''
 	};
 };

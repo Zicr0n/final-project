@@ -131,7 +131,9 @@ export const room = pgTable('room', {
 	name: text('name').notNull(),
 	maxPlayers: integer('max_players').notNull().default(10),
 	playerCount: integer('player_count').notNull().default(0),
-	createdAt: timestamp('created_at').defaultNow().notNull()
+	createdAt: timestamp('created_at').defaultNow().notNull(),
+	passwordHash: text('password_hash'),
+	isPrivate: boolean('is_private').default(false)
 });
 
 // ── Relations ─────────────────────────────────────────────────────────────────

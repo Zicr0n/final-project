@@ -7,6 +7,7 @@ import { room, character } from './src/lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import 'dotenv/config';
+import argon2 from 'argon2';
 
 const { Pool } = pg;
 
@@ -103,9 +104,9 @@ const webSocketServer = {
 
 			activeUsers.set(String(userId), socket.id);
 
-			socket.on('join_room', async ({ roomId }: { roomId: number }) => {
+			socket.on('join_room', async ({ roomId, password }: { roomId: number, password : string  }) => {
 				const [foundRoom] = await db
-					.select({ id: room.id, maxPlayers: room.maxPlayers })
+					.select({ id: room.id, maxPlayers: room.maxPlayers, isPrivate : room.isPrivate, passwordHash : room.passwordHash })
 					.from(room)
 					.where(eq(room.id, roomId));
 
@@ -116,6 +117,19 @@ const webSocketServer = {
 
 				if (!rooms[roomId]) {
 					rooms[roomId] = { players: {}, timer: null };
+				}
+				
+				if (foundRoom.isPrivate && foundRoom.passwordHash != null){
+					if (!password ){
+						socket.emit("room_error", {error : "Password required to join this room"})
+						return;
+					}
+
+					const ok = await argon2.verify(foundRoom.passwordHash, password);
+					if (!ok){
+						socket.emit("room_error", {error : "Wrong Password"})
+						return;
+					}
 				}
 
 				const currentRoom = rooms[roomId];

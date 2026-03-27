@@ -8,6 +8,7 @@
 
 	let { data } = $props();
 	const roomId = data.roomId;
+	const password = data.password ?? '';
 
 	let socket;
 	let lastFrame = performance.now();
@@ -28,6 +29,48 @@
 	let markerVisible = $state(false);
 	let markerTimeout;
 
+	const bubbleTimers = new Map();
+
+	function showBubble(sender, text) {
+		players.update((p) => {
+			const next = { ...p };
+
+			for (const id in next) {
+				if (next[id].username === sender) {
+					next[id] = {
+						...next[id],
+						bubbleText: text
+					};
+
+					if (bubbleTimers.has(id)) {
+						clearTimeout(bubbleTimers.get(id));
+					}
+
+					const timer = setTimeout(() => {
+						players.update((current) => {
+							if (!current[id]) return current;
+
+							return {
+								...current,
+								[id]: {
+									...current[id],
+									bubbleText: ''
+								}
+							};
+						});
+
+						bubbleTimers.delete(id);
+					}, 3000);
+
+					bubbleTimers.set(id, timer);
+					break;
+				}
+			}
+
+			return next;
+		});
+	}
+
 	function animate(now) {
 		const dt = (now - lastFrame) / 1000;
 		lastFrame = now;
@@ -45,9 +88,16 @@
 			if (id && socket) {
 				players.update((p) => {
 					const next = { ...p };
-					if (next[id]) next[id] = { ...next[id], x, y };
+					if (next[id]) {
+						next[id] = {
+							...next[id],
+							x,
+							y
+						};
+					}
 					return next;
 				});
+
 				socket.emit('move', { roomId, x, y });
 			}
 		}
@@ -57,7 +107,7 @@
 
 			for (const id in next) {
 				const player = next[id];
-				if (player.targetX !== undefined) {
+				if (player.targetX !== undefined && player.targetY !== undefined) {
 					next[id] = {
 						...player,
 						x: player.x + (player.targetX - player.x) * 10 * dt,
@@ -82,7 +132,7 @@
 			}
 		});
 
-		socket.emit('join_room', { roomId });
+		socket.emit('join_room', { roomId, password });
 
 		socket.on('map_assigned', (assignedMap) => {
 			map = assignedMap;
@@ -90,13 +140,18 @@
 
 		socket.on('room_error', ({ error }) => {
 			console.error(error);
-			alert(error)
+			alert(error);
 			goto('/rooms');
 		});
 
 		socket.on('character_assigned', (character) => {
 			myId.set(character.id);
-			players.update((p) => ({ ...p, [character.id]: character }));
+
+			players.update((p) => ({
+				...p,
+				[character.id]: character
+			}));
+
 			x = character.x;
 			y = character.y;
 			targetX = character.x;
@@ -104,16 +159,23 @@
 		});
 
 		socket.on('existing_players', (existing) => {
-			players.update((p) => ({ ...existing, ...p }));
+			players.update((p) => ({
+				...existing,
+				...p
+			}));
 		});
 
 		socket.on('player_joined', (character) => {
-			players.update((p) => ({ ...p, [character.id]: character }));
+			players.update((p) => ({
+				...p,
+				[character.id]: character
+			}));
 		});
 
 		socket.on('player_moved', ({ id, x: nx, y: ny }) => {
 			players.update((p) => {
 				if (!p[id]) return p;
+
 				return {
 					...p,
 					[id]: {
@@ -126,6 +188,11 @@
 		});
 
 		socket.on('player_left', (id) => {
+			if (bubbleTimers.has(id)) {
+				clearTimeout(bubbleTimers.get(id));
+				bubbleTimers.delete(id);
+			}
+
 			players.update((p) => {
 				const next = { ...p };
 				delete next[id];
@@ -135,38 +202,7 @@
 
 		socket.on('chat_message', ({ sender, text }) => {
 			chat.update((c) => [...c, { sender, text }]);
-
-			players.update((p) => {
-				const next = { ...p };
-
-				for (const id in next) {
-					if (next[id].username === sender) {
-						next[id] = {
-							...next[id],
-							bubbleText: text
-						};
-
-						setTimeout(() => {
-							players.update((current) => {
-								if (!current[id]) return current;
-								if (current[id].bubbleText !== text) return current;
-
-								return {
-									...current,
-									[id]: {
-										...current[id],
-										bubbleText: ''
-									}
-								};
-							});
-						}, 3000);
-
-						break;
-					}
-				}
-
-				return next;
-			});
+			showBubble(sender, text);
 		});
 
 		socket.on('room_closed', () => {
@@ -176,6 +212,14 @@
 
 	onDestroy(() => {
 		socket?.disconnect();
+
+		for (const timer of bubbleTimers.values()) {
+			clearTimeout(timer);
+		}
+		bubbleTimers.clear();
+
+		clearTimeout(markerTimeout);
+
 		players.set({});
 		chat.set([]);
 		myId.set(null);
@@ -192,12 +236,16 @@
 		markerX = clickX;
 		markerY = clickY;
 		markerVisible = true;
+
 		clearTimeout(markerTimeout);
-		markerTimeout = setTimeout(() => (markerVisible = false), 600);
+		markerTimeout = setTimeout(() => {
+			markerVisible = false;
+		}, 600);
 	}
 
 	function sendMessage() {
 		if (!chatInput.trim()) return;
+
 		const text = chatInput.trim().slice(0, 120);
 		chatInput = '';
 		socket.emit('chat_message', { roomId, message: text });
@@ -237,6 +285,7 @@
 				<li><strong>{msg.sender}</strong>: {msg.text}</li>
 			{/each}
 		</ul>
+
 		<div class="chat-input">
 			<input
 				bind:value={chatInput}
