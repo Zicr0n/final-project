@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { handler } from '../build/handler.js';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { room, character } from './src/lib/server/db/schema.js';
+import { room, character } from '../src/lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import argon2 from 'argon2';
