@@ -3,13 +3,32 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { handler } from '../build/handler.js';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { room, character } from '../src/lib/server/db/schema.js';
+import { pgTable, integer, text, boolean, timestamp, varchar } from 'drizzle-orm/pg-core';
 import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import argon2 from 'argon2';
 import 'dotenv/config';
 
 const { Pool } = pg;
+
+const room = pgTable('room', {
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
+	name: text('name').notNull(),
+	maxPlayers: integer('max_players').notNull().default(10),
+	playerCount: integer('player_count').notNull().default(0),
+	isPrivate: boolean('is_private').notNull().default(false),
+	passwordHash: text('password_hash'),
+	createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+const character = pgTable('character', {
+	id: integer().primaryKey().generatedAlwaysAsIdentity(),
+	userId: text('user_id').notNull().unique(),
+	bodyColor: varchar('body_color', { length: 7 }).notNull().default('#ffffff'),
+	hatId: integer('hat_id').default(0),
+	shirtId: integer('shirt_id').default(0),
+	eyesId: integer('eyes_id').default(0)
+});
 
 const port = process.env.PORT || 3000;
 const EMPTY_ROOM_TIMEOUT = 5 * 60 * 1000;
@@ -76,7 +95,6 @@ io.on('connection', (socket) => {
 	socket.data.userId = String(userId);
 	socket.data.username = String(username);
 
-	// Block duplicate tabs / sessions
 	const existingSocketId = activeUsers.get(String(userId));
 	if (existingSocketId && existingSocketId !== socket.id) {
 		socket.emit('room_error', { error: 'Game session already exists' });
