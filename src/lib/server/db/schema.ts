@@ -125,7 +125,6 @@ export const friendRequest = pgTable('friend_request', {
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
-// ── Room ──────────────────────────────────────────────────────────────────────
 export const room = pgTable('room', {
 	id: integer().primaryKey().generatedAlwaysAsIdentity(),
 	name: text('name').notNull(),
@@ -136,7 +135,6 @@ export const room = pgTable('room', {
 	isPrivate: boolean('is_private').default(false)
 });
 
-// ── Relations ─────────────────────────────────────────────────────────────────
 export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
 	accounts: many(account),

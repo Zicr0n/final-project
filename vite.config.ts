@@ -32,7 +32,6 @@ const rooms: Record<
 	}
 > = {};
 
-// userid, socketid
 const activeUsers = new Map<string, string>();
 
 const webSocketServer = {
@@ -104,6 +103,8 @@ const webSocketServer = {
 
 			activeUsers.set(String(userId), socket.id);
 
+			console.log("player about to join")
+
 			socket.on('join_room', async ({ roomId, password }: { roomId: number, password : string  }) => {
 				const [foundRoom] = await db
 					.select({ id: room.id, maxPlayers: room.maxPlayers, isPrivate : room.isPrivate, passwordHash : room.passwordHash })
@@ -143,6 +144,8 @@ const webSocketServer = {
 
 				socket.join(String(roomId));
 				socket.data.roomId = roomId;
+
+				console.log("player joined room")
 
 				let [dbCharacter] = await db
 					.select()
@@ -185,9 +188,13 @@ const webSocketServer = {
 
 				await updatePlayerCount(roomId);
 
+				console.log("about to emit signals")
+
 				socket.emit('character_assigned', player);
 				socket.emit('existing_players', currentRoom.players);
 				socket.to(String(roomId)).emit('player_joined', player);
+
+				console.log("player joined successfully")
 			});
 
 			socket.on('move', ({ roomId, x, y }: { roomId: number; x: number; y: number }) => {
@@ -238,5 +245,5 @@ const webSocketServer = {
 };
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()]
+	plugins: [tailwindcss(), sveltekit(), webSocketServer]
 });
