@@ -159,8 +159,14 @@
 		});
 
 		socket.on('existing_players', (existing) => {
+			const withTargets = Object.fromEntries(
+				Object.entries(existing).map(([id, p]) => [
+					id,
+					{ ...p, targetX: p.x, targetY: p.y }
+				])
+			);
 			players.update((p) => ({
-				...existing,
+				...withTargets,
 				...p
 			}));
 		});
@@ -168,7 +174,7 @@
 		socket.on('player_joined', (character) => {
 			players.update((p) => ({
 				...p,
-				[character.id]: character
+				[character.id]: { ...character, targetX: character.x, targetY: character.y }
 			}));
 		});
 
@@ -256,7 +262,8 @@
 
 <main class="p-4">
 	<div class="room" onclick={handleClick} onkeydown={() => {}} role="button" tabindex="0">
-		<div class="player" style="left:{x}px; top:{y}px;">
+		<div class="player" style="left:{x}px; top:{y}px;
+		background-color : {data.char.bodyColor};">
 			{#if $players[$myId]?.bubbleText}
 				<div class="chat-bubble">{$players[$myId].bubbleText}</div>
 			{/if}
@@ -265,7 +272,8 @@
 		</div>
 
 		{#each Object.values($players).filter((p) => p.id !== $myId) as p}
-			<div class="player" style="left:{p.x}px; top:{p.y}px;">
+			<div class="player" style="left:{p.x}px; top:{p.y}px;
+			background-color: {p.bodyColor}">
 				{#if p.bubbleText}
 					<div class="chat-bubble">{p.bubbleText}</div>
 				{/if}
@@ -276,7 +284,7 @@
 
 		{#if markerVisible}
 			<div class="marker" style="left:{markerX}px; top:{markerY}px;"></div>
-		{/if}
+		{/if}	
 	</div>
 
 	<div class="chat">
