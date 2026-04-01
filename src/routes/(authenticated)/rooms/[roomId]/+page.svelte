@@ -5,6 +5,7 @@
 	import { get } from 'svelte/store';
 	import { players, myId } from '$lib/stores/players';
 	import { chat } from '$lib/stores/chat';
+	import { Filter } from 'bad-words';
 
 	let { data } = $props();
 	const roomId = data.roomId;
@@ -30,6 +31,8 @@
 	let markerTimeout;
 
 	const bubbleTimers = new Map();
+
+	const filter = new Filter({placeHolder : "#"})
 
 	function showBubble(sender, text) {
 		players.update((p) => {
@@ -265,7 +268,7 @@
 		<div class="player" style="left:{x}px; top:{y}px;
 		background-color : {data.char.bodyColor};">
 			{#if $players[$myId]?.bubbleText}
-				<div class="chat-bubble">{$players[$myId].bubbleText}</div>
+				<div class="chat-bubble">{filter.clean($players[$myId].bubbleText)}</div>
 			{/if}
 			<img src="/player.webp" alt="sprite" />
 			<div class="name-tag">{data.user.username}</div>
@@ -275,7 +278,7 @@
 			<div class="player" style="left:{p.x}px; top:{p.y}px;
 			background-color: {p.bodyColor}">
 				{#if p.bubbleText}
-					<div class="chat-bubble">{p.bubbleText}</div>
+					<div class="chat-bubble">{filter.clean(p.bubbleText)}</div>
 				{/if}
 				<img src="/player.webp" alt="sprite" />
 				<div class="name-tag">{p.username}</div>
