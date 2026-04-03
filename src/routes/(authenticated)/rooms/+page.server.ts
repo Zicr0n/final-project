@@ -1,4 +1,3 @@
-// src/routes/(authenticated)/rooms/+page.server.ts
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { room } from '$lib/server/db/schema';

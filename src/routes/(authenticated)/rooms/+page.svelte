@@ -1,4 +1,3 @@
-<!-- src/routes/(authenticated)/rooms/+page.svelte -->
 <script>
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';

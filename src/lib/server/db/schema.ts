@@ -125,6 +125,8 @@ export const friendRequest = pgTable('friend_request', {
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
+export const roomTypeEnum = pgEnum('room_type', ['bomb', 'pop', 'scribble', 'vote']);
+
 export const room = pgTable('room', {
 	id: integer().primaryKey().generatedAlwaysAsIdentity(),
 	name: text('name').notNull(),
@@ -132,8 +134,10 @@ export const room = pgTable('room', {
 	playerCount: integer('player_count').notNull().default(0),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	passwordHash: text('password_hash'),
-	isPrivate: boolean('is_private').default(false)
+	isPrivate: boolean('is_private').default(false),
+	type: roomTypeEnum('type').notNull().default('bomb')
 });
+
 
 export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),

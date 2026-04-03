@@ -17,8 +17,7 @@ Chatta, socialisera, spela
 Främst för att lära mig websockets, men också för att multiplayer är kul.
 
 ### Inspiration:
-
-Club Penguin, Discord, Whatsapp
+jklm.fun, skribbl.io, Discord, Whatsapp, geoguesser
 
 # Teknisk implementation för [Ditt projekt]
 
@@ -54,10 +53,11 @@ Club Penguin, Discord, Whatsapp
 
 **Vad kan inloggade användare göra som ej-inloggade inte kan:**
 
-- Rum (gå med, skapa, interagera i realtid)
-- Profiler (redigera sin egen, skicka vänförfrågningar)
+- Rum med bestämt namn (annars random namn och profil)
+- Profiler (redigera sin egen, skicka vänförfrågningar, lägga upp
+  profilbild, customiza sin profilsida)
 - Inställningar (ändra lösenord, email, profilbild)
-- Character Customization
+- Character Customization, 
 
 ## 5. Kryptering
 
@@ -78,9 +78,9 @@ Club Penguin, Discord, Whatsapp
 
 **Vad ska uppdateras live:**
 
-- Rumdata (spelarposition, utseende, rörelser via WebSockets)
-- Notifikationer (join-events, vänförfrågningar, rum-inbjudningar)
-- Live stats (global player count, aktiva rum)
+- Rumdata (vems tur, när man skriver, när man chattar, )
+- Notifikationer (join-events, vänförfrågningar)
+- Live stats (global player count, aktiva rum, player count per room)
 
 ## 8. Komponentbibliotek (frivilligt)
 

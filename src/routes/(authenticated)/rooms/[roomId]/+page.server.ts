@@ -17,7 +17,8 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 			id: room.id,
 			name: room.name,
 			maxPlayers: room.maxPlayers,
-			playerCount: room.playerCount
+			playerCount: room.playerCount,
+			type : room.type
 		})
 		.from(room)
 		.where(eq(room.id, roomId));
