@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import argon2 from 'argon2';
 import 'dotenv/config';
+import { gameModes } from '../src/lib/game-modes/index.js';
 
 const { Pool } = pg;
 
@@ -18,6 +19,8 @@ const room = pgTable('room', {
 	playerCount: integer('player_count').notNull().default(0),
 	isPrivate: boolean('is_private').notNull().default(false),
 	passwordHash: text('password_hash'),
+	type: text('type').notNull().default('BOMB'),
+	ownerId: text('owner_id'),
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
@@ -31,7 +34,7 @@ const character = pgTable('character', {
 });
 
 const port = process.env.PORT || 3000;
-const EMPTY_ROOM_TIMEOUT = 5 * 60 * 1000;
+const EMPTY_ROOM_TIMEOUT = 60 * 1000;
 
 const rooms = {};
 const activeUsers = new Map();
@@ -52,6 +55,24 @@ const io = new Server(server, {
 const getPlayerCount = (roomId) =>
 	rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0;
 
+const getMode = (roomId) => {
+	const currentRoom = rooms[roomId];
+	if (!currentRoom) return null;
+	return gameModes[currentRoom.roomType] ?? null;
+};
+
+const emitRoomState = (roomId) => {
+	const currentRoom = rooms[roomId];
+	if (!currentRoom) return;
+
+	io.to(String(roomId)).emit('room_state', {
+		players: Object.values(currentRoom.players),
+		started: currentRoom.started,
+		roomType: currentRoom.roomType,
+		owner: currentRoom.owner
+	});
+};
+
 const updatePlayerCount = async (roomId) => {
 	await db
 		.update(room)
@@ -59,12 +80,21 @@ const updatePlayerCount = async (roomId) => {
 		.where(eq(room.id, roomId));
 };
 
+const updateOwner = async (roomId, ownerId) => {
+	await db
+		.update(room)
+		.set({ ownerId })
+		.where(eq(room.id, roomId));
+};
+
 const closeRoom = async (roomId) => {
 	if (!rooms[roomId]) return;
-	console.log(`Room ${roomId} closed due to inactivity.`);
+
 	io.to(String(roomId)).emit('room_closed', { roomId });
 	io.socketsLeave(String(roomId));
+
 	delete rooms[roomId];
+
 	await db.delete(room).where(eq(room.id, roomId));
 };
 
@@ -81,6 +111,69 @@ const handleEmptyRoom = (roomId) => {
 		currentRoom.timer = setTimeout(() => closeRoom(roomId), EMPTY_ROOM_TIMEOUT);
 	}
 };
+
+const removePlayerFromRoom = async (socket, options = {}) => {
+	const roomId = Number(socket.data.roomId);
+	const userId = socket.data.userId;
+
+	if (options.clearActiveUser && userId && activeUsers.get(userId) === socket.id) {
+		activeUsers.delete(userId);
+	}
+
+	if (!roomId || !userId || !rooms[roomId]?.players[userId]) {
+		socket.data.roomId = undefined;
+		return;
+	}
+
+	const currentRoom = rooms[roomId];
+	const mode = getMode(roomId);
+
+	mode?.onPlayerLeave?.(
+		{
+			roomId,
+			room: currentRoom,
+			io
+		},
+		userId
+	);
+
+	if (currentRoom.owner?.id === userId) {
+		const remaining = Object.values(currentRoom.players).filter((p) => p.id !== userId);
+		currentRoom.owner = remaining[0] ?? null;
+
+		if (currentRoom.owner) {
+			await updateOwner(roomId, currentRoom.owner.id);
+		} else {
+			await updateOwner(roomId, null);
+		}
+	}
+
+	delete currentRoom.players[userId];
+
+	socket.leave(String(roomId));
+	socket.data.roomId = undefined;
+
+	handleEmptyRoom(roomId);
+	await updatePlayerCount(roomId);
+	emitRoomState(roomId);
+};
+
+// ── Game loop ─────────────────────────────────────────────────────────────────
+
+setInterval(() => {
+	for (const [roomIdString, currentRoom] of Object.entries(rooms)) {
+		if (!currentRoom.started) continue;
+
+		const roomId = Number(roomIdString);
+		const mode = gameModes[currentRoom.roomType];
+
+		mode?.onTick?.({
+			roomId,
+			room: currentRoom,
+			io
+		});
+	}
+}, 250);
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 
@@ -105,9 +198,23 @@ io.on('connection', (socket) => {
 	activeUsers.set(String(userId), socket.id);
 
 	// ── Join room ─────────────────────────────────────────────────────────────
+
 	socket.on('join_room', async ({ roomId, password }) => {
+		const currentRoomId = Number(socket.data.roomId);
+
+		if (currentRoomId && currentRoomId !== roomId) {
+			await removePlayerFromRoom(socket, { clearActiveUser: false });
+		}
+
 		const [foundRoom] = await db
-			.select({ id: room.id, maxPlayers: room.maxPlayers, isPrivate: room.isPrivate, passwordHash: room.passwordHash })
+			.select({
+				id: room.id,
+				maxPlayers: room.maxPlayers,
+				isPrivate: room.isPrivate,
+				passwordHash: room.passwordHash,
+				type: room.type,
+				ownerId: room.ownerId
+			})
 			.from(room)
 			.where(eq(room.id, roomId));
 
@@ -117,14 +224,23 @@ io.on('connection', (socket) => {
 		}
 
 		if (!rooms[roomId]) {
-			rooms[roomId] = { players: {}, timer: null };
+			const mode = gameModes[foundRoom.type];
+			rooms[roomId] = {
+				players: {},
+				timer: null,
+				started: false,
+				roomType: foundRoom.type,
+				gameState: mode?.initMode?.() ?? null,
+				owner: null
+			};
 		}
 
-		if (foundRoom.isPrivate && foundRoom.passwordHash != null) {
+		if (foundRoom.isPrivate && foundRoom.passwordHash) {
 			if (!password) {
 				socket.emit('room_error', { error: 'Password required to join this room' });
 				return;
 			}
+
 			const ok = await argon2.verify(foundRoom.passwordHash, password);
 			if (!ok) {
 				socket.emit('room_error', { error: 'Wrong password' });
@@ -156,6 +272,7 @@ io.on('connection', (socket) => {
 				shirtId: 0,
 				eyesId: 0
 			});
+
 			[dbCharacter] = await db
 				.select()
 				.from(character)
@@ -172,10 +289,16 @@ io.on('connection', (socket) => {
 			bodyColor: dbCharacter?.bodyColor ?? '#ffffff',
 			hatId: dbCharacter?.hatId ?? 0,
 			shirtId: dbCharacter?.shirtId ?? 0,
-			eyesId: dbCharacter?.eyesId ?? 0
+			eyesId: dbCharacter?.eyesId ?? 0,
+			joined: existingPlayer?.joined ?? false
 		};
 
 		currentRoom.players[socket.data.userId] = player;
+
+		if (!currentRoom.owner) {
+			currentRoom.owner = currentRoom.players[socket.data.userId];
+			await updateOwner(roomId, currentRoom.owner.id);
+		}
 
 		if (currentRoom.timer) {
 			clearTimeout(currentRoom.timer);
@@ -187,9 +310,68 @@ io.on('connection', (socket) => {
 		socket.emit('character_assigned', player);
 		socket.emit('existing_players', currentRoom.players);
 		socket.to(String(roomId)).emit('player_joined', player);
+		emitRoomState(roomId);
+	});
+
+	// ── Leave room ────────────────────────────────────────────────────────────
+
+	socket.on('leave_room', async () => {
+		await removePlayerFromRoom(socket, { clearActiveUser: false });
+		socket.emit('left_room');
+	});
+
+	// ── Join game ─────────────────────────────────────────────────────────────
+
+	socket.on('join_game', async () => {
+		const roomId = Number(socket.data.roomId);
+		const joinedUserId = socket.data.userId;
+		const currentRoom = rooms[roomId];
+
+		if (!joinedUserId || activeUsers.get(joinedUserId) !== socket.id || !currentRoom) return;
+		if (currentRoom.started) return;
+		if (!currentRoom.players[joinedUserId]) return;
+
+		currentRoom.players[joinedUserId].joined = true;
+
+		const joinedCount = Object.values(currentRoom.players).filter((p) => p.joined).length;
+
+		emitRoomState(roomId);
+
+		if (joinedCount > 1) {
+			currentRoom.started = true;
+
+			const mode = getMode(roomId);
+			mode?.onGameStart?.({
+				room: currentRoom,
+				roomId,
+				io
+			});
+		}
+	});
+
+	// ── Wordbomb submit ───────────────────────────────────────────────────────
+
+	socket.on('wordbomb_submit', async ({ word }) => {
+		const roomId = Number(socket.data.roomId);
+		const userId = socket.data.userId;
+		const currentRoom = rooms[roomId];
+		const mode = getMode(roomId);
+
+		if (!currentRoom || !mode) return;
+
+		mode.onWordSubmitted?.(
+			{
+				roomId,
+				room: currentRoom,
+				io
+			},
+			userId,
+			word
+		);
 	});
 
 	// ── Move ──────────────────────────────────────────────────────────────────
+
 	socket.on('move', ({ roomId, x, y }) => {
 		const currentRoom = rooms[roomId];
 		if (!currentRoom?.players[socket.data.userId]) return;
@@ -208,6 +390,7 @@ io.on('connection', (socket) => {
 	});
 
 	// ── Chat ──────────────────────────────────────────────────────────────────
+
 	socket.on('chat_message', ({ roomId, message }) => {
 		if (!rooms[roomId]) return;
 		io.to(String(roomId)).emit('chat_message', {
@@ -217,21 +400,12 @@ io.on('connection', (socket) => {
 	});
 
 	// ── Disconnect ────────────────────────────────────────────────────────────
+
 	socket.on('disconnect', async () => {
-		const roomId = socket.data.roomId;
-		const joinedUserId = socket.data.userId;
+		await removePlayerFromRoom(socket, { clearActiveUser: true });
 
-		if (joinedUserId && activeUsers.get(joinedUserId) === socket.id) {
-			activeUsers.delete(joinedUserId);
-		}
-
-		if (!roomId || !joinedUserId || !rooms[roomId]?.players[joinedUserId]) return;
-
-		delete rooms[roomId].players[joinedUserId];
-		socket.to(String(roomId)).emit('player_left', joinedUserId);
-
-		handleEmptyRoom(Number(roomId));
-		await updatePlayerCount(Number(roomId));
+		const currentRoomId = Number(socket.data.roomId);
+		emitRoomState(currentRoomId);
 	});
 });
 
