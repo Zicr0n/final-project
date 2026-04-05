@@ -1,4 +1,4 @@
-import type { GameMode } from "./mode-interface";
+import type { GameMode } from "./mode-interface.ts";
 
 const TIME_BEFORE_EXPLODE = 10000
 
