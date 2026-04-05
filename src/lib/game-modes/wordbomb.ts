@@ -1,6 +1,6 @@
 import type { GameMode } from "./mode-interface";
 
-const TIME_BEFORE_EXPLODE = 3000
+const TIME_BEFORE_EXPLODE = 10000
 
 type GameState = {
     status : string,
