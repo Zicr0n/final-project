@@ -8,6 +8,8 @@ import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import 'dotenv/config';
 import argon2 from 'argon2';
+import type { GameMode } from './src/lib/game-modes/mode-interface.js';
+import { gameModes } from './src/lib/game-modes/index.js';
 
 const { Pool } = pg;
 
@@ -33,6 +35,8 @@ const rooms: Record<
 		timer: ReturnType<typeof setTimeout> | null;
 		started: boolean;
 		roomType : string;
+		gameState : any;
+		owner: RoomPlayer | null;
 	}
 > = {};
 
@@ -51,6 +55,21 @@ const webSocketServer = {
 		const db = drizzle(pool);
 		const io = new Server(server.httpServer);
 
+		setInterval(() => {
+			for (const [roomIdString, currentRoom] of Object.entries(rooms)) {
+				if (!currentRoom.started) continue;
+
+				const roomId = Number(roomIdString);
+				const mode = gameModes[currentRoom.roomType as keyof typeof gameModes];
+
+				mode?.onTick?.({
+					roomId,
+					room: currentRoom,
+					io
+				});
+			}
+		}, 250)
+
 		const getPlayerCount = (roomId: number) =>
 			rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0;
 
@@ -64,14 +83,65 @@ const webSocketServer = {
 				.where(eq(room.id, roomId));
 		};
 
-		const endGame = (roomId : number) => {
-			const room = rooms[roomId]
+		const updateOwner = async (roomId: number, ownerId : string) => {
+			await db
+				.update(room)
+				.set({ ownerId: ownerId })
+				.where(eq(room.id, roomId));
+		};
 
-			for (var player of Object.values(room.players)){
-				player.joined = false
+		const removePlayerFromRoom = async (
+			socket: any,
+			options?: { clearActiveUser?: boolean }
+		) => {
+			const roomId = Number(socket.data.roomId);
+			const userId = socket.data.userId;
+
+			if (options?.clearActiveUser && userId && activeUsers.get(userId) === socket.id) {
+				activeUsers.delete(userId);
 			}
 
-			room.started = false
+			if (!roomId || !userId || !rooms[roomId]?.players[userId]) {
+				socket.data.roomId = undefined;
+				return;
+			}
+
+			const currentRoom = rooms[roomId];
+			const mode = getMode(roomId);
+
+			mode?.onPlayerLeave?.(
+				{
+					roomId,
+					room: currentRoom,
+					io
+				},
+				userId
+			);
+
+			if (currentRoom.owner?.id === userId) {
+				const remaining = Object.values(currentRoom.players).filter((p) => p.id !== userId);
+				currentRoom.owner = remaining[0] ?? null;
+
+				if (currentRoom.owner) {
+					await updateOwner(roomId, currentRoom.owner.id);
+				}
+			}
+
+			delete currentRoom.players[userId];
+
+			socket.leave(String(roomId));
+			socket.data.roomId = undefined;
+
+			handleEmptyRoom(roomId);
+			await updatePlayerCount(roomId);
+			emitRoomState(roomId);
+		};
+
+		const getMode = (roomId : number) => {
+			const currentRoom = rooms[roomId];
+			if (!currentRoom) return null;
+
+			return gameModes[currentRoom.roomType as keyof typeof gameModes] ?? null;
 		}
 
 		const emitRoomState = (roomId: number) => {
@@ -80,7 +150,9 @@ const webSocketServer = {
 
 			io.to(String(roomId)).emit('room_state', {
 				players: Object.values(currentRoom.players),
-				started : currentRoom.started
+				started : currentRoom.started,
+				roomType : currentRoom.roomType,
+				owner : currentRoom.owner
 			});
 		};
 
@@ -134,13 +206,20 @@ const webSocketServer = {
 			socket.on(
 				'join_room',
 				async ({ roomId, password }: { roomId: number; password?: string }) => {
+					const currentRoomId = Number(socket.data.roomId);
+
+					if (currentRoomId && currentRoomId !== roomId) {
+						await removePlayerFromRoom(socket, { clearActiveUser: false });
+					}
+					
 					const [foundRoom] = await db
 						.select({
 							id: room.id,
 							maxPlayers: room.maxPlayers,
 							isPrivate: room.isPrivate,
 							passwordHash: room.passwordHash,
-							type : room.type
+							type : room.type,
+							ownerId : room.ownerId
 						})
 						.from(room)
 						.where(eq(room.id, roomId));
@@ -151,7 +230,9 @@ const webSocketServer = {
 					}
 
 					if (!rooms[roomId]) {
-						rooms[roomId] = { players: {}, timer: null, started : false, roomType : foundRoom.type };
+						const mode = gameModes[foundRoom.type]
+						rooms[roomId] = { players: {}, timer: null, started : false, roomType : foundRoom.type, gameState : mode?.initMode() ?? null, owner : null };
+
 					}
 
 					if (foundRoom.isPrivate && foundRoom.passwordHash) {
@@ -185,6 +266,11 @@ const webSocketServer = {
 						joined : false
 					};
 
+					if (!currentRoom.owner) {
+						currentRoom.owner = currentRoom.players[socket.data.userId];
+						await updateOwner(roomId, currentRoom.owner.id);
+					}
+
 					if (currentRoom.timer) {
 						clearTimeout(currentRoom.timer);
 						currentRoom.timer = null;
@@ -196,63 +282,64 @@ const webSocketServer = {
 			);
 
 			socket.on('disconnect', async () => {
-				const roomId = Number(socket.data.roomId);
-				const joinedUserId = socket.data.userId;
-
-				// TODO : do not disconnect player immediately, only
-				// after like 1 minute
-
-				if (joinedUserId && activeUsers.get(joinedUserId) === socket.id) {
-					activeUsers.delete(joinedUserId);
-				}
-
-				if (!roomId || !joinedUserId || !rooms[roomId]?.players[joinedUserId]) return;
-
-				const currentRoom = rooms[roomId]
-
-				delete currentRoom.players[joinedUserId];
-
-				if(getJoinedPlayerCount(roomId) == 1){
-					// End game, cant play alone
-					endGame(roomId)
-				}
-
-				handleEmptyRoom(roomId);
-				await updatePlayerCount(roomId);
-				emitRoomState(roomId);
+				await removePlayerFromRoom(socket, { clearActiveUser: true });
+				const currentRoomId = Number(socket.data.roomId);
+				emitRoomState(currentRoomId)
 			});
 
-			socket.on('join_game', async () =>{
+			socket.on('leave_room', async () => {
+				await removePlayerFromRoom(socket, { clearActiveUser: false });
+				socket.emit('left_room');
+			});
+
+			socket.on('join_game', async () => {
 				const roomId = Number(socket.data.roomId);
 				const joinedUserId = socket.data.userId;
-				const room = rooms[roomId]
+				const room = rooms[roomId];
 
-				if (joinedUserId && activeUsers.get(joinedUserId) === socket.id && room) {
-					// Check if game is already started or not
-					if (room.started == true){
-						console.log("room already started cant join")
-						return // TODO : send error that the game has already started and you somehow was able to join
-					}
+				if (!joinedUserId || activeUsers.get(joinedUserId) !== socket.id || !room) return;
+				if (room.started) return;
+				if (!room.players[joinedUserId]) return;
 
-					// Join the game
-					room.players[joinedUserId].joined = true;
+				room.players[joinedUserId].joined = true;
 
-					// Check if enough players, then start
-					// TODO : if enough players, start timer then start
-					// TODO : pause timer if settings are being changed
-					console.log(room.players)
-					if(Object.values(room.players).filter((a) => a.joined === true).length > 1){
-						room.started = true
-						console.log("started")
-					}
+				const joinedCount = Object.values(room.players).filter((p) => p.joined).length;
 
-					emitRoomState(roomId);
+				emitRoomState(roomId);
 
-					return true
+				if (joinedCount > 1) {
+					room.started = true;
+
+					const mode = getMode(roomId);
+					mode?.onGameStart?.({
+						room,
+						roomId,
+						io
+					});
 				}
 
-				return false
-			})
+			});
+
+			socket.on("wordbomb_submit", async ({word}) => {
+				const roomId = Number(socket.data.roomId);
+				const userId = socket.data.userId;
+				const room = rooms[roomId];
+				const mode = getMode(roomId);
+
+				if (!room || !mode) return;
+
+				mode.onWordSubmitted?.(
+					{
+						roomId,
+						room,
+						io
+					},
+					userId,
+					word
+				);
+
+
+			});
 		});
 	}
 };

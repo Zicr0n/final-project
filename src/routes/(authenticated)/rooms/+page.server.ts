@@ -9,7 +9,8 @@ export const load: PageServerLoad = async () => {
 			roomId: room.id,
 			name: room.name,
 			playerCount: room.playerCount,
-			maxPlayers: room.maxPlayers
+			maxPlayers: room.maxPlayers,
+			ownerId : room.ownerId
 		})
 		.from(room)
 		.orderBy(desc(room.createdAt));

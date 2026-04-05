@@ -135,9 +135,11 @@ export const room = pgTable('room', {
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	passwordHash: text('password_hash'),
 	isPrivate: boolean('is_private').default(false),
-	type: roomTypeEnum('type').notNull().default('bomb')
+	type: roomTypeEnum('type').notNull().default('bomb'),
+	ownerId: text('owner_id')
+		.notNull()
+		.references(() => user.id, { onDelete: 'cascade' })
 });
-
 
 export const userRelations = relations(user, ({ many, one }) => ({
 	sessions: many(session),
@@ -145,7 +147,8 @@ export const userRelations = relations(user, ({ many, one }) => ({
 	character: one(character, { fields: [user.id], references: [character.userId] }),
 	galleryImages: many(galleryImage),
 	sentRequests: many(friendRequest, { relationName: 'sender' }),
-	receivedRequests: many(friendRequest, { relationName: 'receiver' })
+	receivedRequests: many(friendRequest, { relationName: 'receiver' }),
+	ownedRooms: many(room)
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -174,5 +177,12 @@ export const friendRequestRelations = relations(friendRequest, ({ one }) => ({
 		fields: [friendRequest.receiverId],
 		references: [user.id],
 		relationName: 'receiver'
+	})
+}));
+
+export const roomRelations = relations(room, ({ one }) => ({
+	owner: one(user, {
+		fields: [room.ownerId],
+		references: [user.id]
 	})
 }));

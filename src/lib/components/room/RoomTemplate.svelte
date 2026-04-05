@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import io from 'socket.io-client';
+	import Wordbomb from './Wordbomb.svelte';
 
 	let { data } = $props();
 
@@ -10,11 +11,13 @@
 	// svelte-ignore state_referenced_locally
 	const password = data.password ?? '';
 
-	let socket: ReturnType<typeof io> | null = null;
+	let socket: ReturnType<typeof io> | null = $state(null);
 	let connectionStatus = $state<'connecting' | 'connected' | 'disconnected'>('connecting');
 	let players = $state<{ id: string; username: string, joined : boolean }[]>([]);
 	let started = $state(false)
     let joined = $state(false)
+    let roomType = $state("")
+    let owner = $state<{ id: string; username: string, joined : boolean }>()
 
 	onMount(() => {
 		connectionStatus = 'connecting';
@@ -43,9 +46,11 @@
 			connectionStatus = 'disconnected';
 		});
 
-		socket.on('room_state', ({ players: roomPlayers, started : roomStarted }) => {
+		socket.on('room_state', ({ players: roomPlayers, started : roomStarted, roomType : roomTypes, owner : roomOwner }) => {
 			players = roomPlayers;
 			started = roomStarted
+			roomType = roomTypes
+			owner = roomOwner
 		});
 
 		socket.on('room_error', ({ error }) => {
@@ -68,7 +73,8 @@
 </script>
 
 <h1 class="h1">{data.room.name}</h1>
-
+<h1 class="h1">{owner?.id}</h1>
+<h1>Room Type : {roomType}</h1>
 <main class="p-4 space-y-4">
 	<section class="card">
 		<h2>Status</h2>
@@ -85,7 +91,7 @@
 		{:else}
 			<ul class="player-list">
 				{#each players as player}
-					<li>{player.username}</li>
+					<li>{player.username} {#if player.id == owner?.id} OWNER {/if}</li>
 					<p>Joined : {player.joined}</p>
 				{/each}
 			</ul>
@@ -102,8 +108,9 @@
 		</section>
 	{/if}
 
-
-
+	{#if roomType == "bomb"}
+		<Wordbomb  {data} {socket}/>
+	{/if}
 </main>
 
 <style>
@@ -113,7 +120,7 @@
 		padding: 1rem;
 		border: 1px solid #ddd;
 		border-radius: 12px;
-		background: white;
+		background: gray;
 	}
 
 	h2 {
@@ -131,7 +138,7 @@
 	}
 
 	.status.connected {
-		color: #15803d;
+		color: limegreen;
 	}
 
 	.status.disconnected {
