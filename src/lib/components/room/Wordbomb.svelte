@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { onDestroy, onMount } from "svelte";
     import { io } from "socket.io-client";
 
-    const { data, socket } = $props();
+    let { data, socket } = $props();
 
     let currentStatus = $state("waiting")
 
@@ -11,7 +11,7 @@
 
     const isMyTurn = $derived(data.user.id === holderId && currentStatus === "playing");
     let userInput = $state("")
-    let wordSubmissions = $state([])
+    let wordSubmissions = $state<{ userId : string, username : string, word : string }[]>([])
 
     type GameState = {
         status: string;
@@ -45,16 +45,23 @@
             });
 
             socket.on('room_state', ({ players: roomPlayers } : RoomStateEvent) => {
-                joinedPlayers = Object.values(roomPlayers).filter((p) => p.joined);
+                joinedPlayers = roomPlayers.filter((p) => p.joined);
             });
-        }
 
-        console.log(data)
+            // If returned then the word was wrong
+            socket.on('wordbomb_submit_error', ({ currentPlayerId } : GameState) => {
+                console.log("WRONG WORD!")
+                OnWordWrong(currentPlayerId)
+            }); 
+        }
     })
 
-    
+    function OnWordWrong(currentPlayerId : string){
+        
+    }
 </script>
 
+<main>
 <h1>Word Bomb</h1>
 <h1>{currentStatus}</h1>
 
@@ -73,7 +80,6 @@
 		/>
 		<button type="submit">Send</button>
 	</form>
-    <input type="text" bind:value={userInput}>
 {/if}
 
 {#if currentStatus == "playing"}
@@ -81,3 +87,4 @@
         <p>{word}</p>
     {/each}
 {/if}
+</main>

@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { room,character } from '$lib/server/db/schema';
@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		.where(eq(room.id, roomId));
 
 	if (!found) {
-		throw error(404, 'Room not found');
+		throw redirect(302, "/rooms")
 	}
 
 	const [char] = await db

@@ -10,6 +10,7 @@ export type RoomPlayer = {
 	id: string;
 	username: string;
 	joined: boolean;
+    lives: number
 };
 
 export type GameModeContext = {
@@ -22,6 +23,7 @@ export type GameMode = {
     initMode : () => unknown,
     onGameStart? : (ctx : GameModeContext) => void,
     onTick? : (ctx : GameModeContext) => void,
+    onGameEnd? : (ctx : GameModeContext, winnerId : string) => void,
     onPlayerLeave? : (ctx : GameModeContext, userId : string) => void,
     onLetterWritten? : (ctx : GameModeContext, word : string, userId : string) => void,
     onWordSubmitted? : (ctx : GameModeContext, word : string, userId : string) => void,

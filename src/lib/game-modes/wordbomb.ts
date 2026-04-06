@@ -1,6 +1,6 @@
 import type { GameMode } from "./mode-interface.ts";
 
-const TIME_BEFORE_EXPLODE = 10000
+const TIME_BEFORE_EXPLODE = 3000
 
 type GameState = {
     status : string,
@@ -10,8 +10,9 @@ type GameState = {
 }
 
 function resetGame(room: any) {
-	for (const player of Object.values(room.players) as { joined: boolean }[]) {
+	for (const player of Object.values(room.players) as { joined: boolean, lives : number }[]) {
 		player.joined = false;
+        player.lives = 1;
 	}
 
 	room.started = false;
@@ -21,6 +22,8 @@ function resetGame(room: any) {
 		explodesAt: null,
         submissions : []
 	};
+
+    
 }
 
 export const wordbombGameMode: GameMode = {
@@ -43,7 +46,12 @@ export const wordbombGameMode: GameMode = {
             submissions : []
 		};
 
+        for (const player of playersJoined as { joined: boolean, lives : number }[]) {
+            player.lives = 1;
+        }
+
 		io.to(String(roomId)).emit("game_state", room.gameState);
+		io.to(String(roomId)).emit("room_state", room);
 	},
 
 	onPlayerLeave({ room, roomId, io }, userId) {
@@ -60,6 +68,7 @@ export const wordbombGameMode: GameMode = {
 		if (remaining.length < 2) {
 			console.log("less than two");
 			resetGame(room);
+            io.to(String(roomId)).emit("room_state", room);
 		}
 
 		io.to(String(roomId)).emit("game_state", room.gameState);
@@ -80,6 +89,13 @@ export const wordbombGameMode: GameMode = {
         let cleanWord = word.trim();
         // TODO : Check word validity
         // Right now im jsut gonna move to next player
+
+        // Is word already used?
+        if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null){
+            console.log("WORD ALREADY USED!")
+            io.to(String(roomId)).emit("wordbomb_submit_error", room.gameState);
+            return
+        }
 
         const currentPlayer = joinedPlayers[currentIndex] as any;
 		const nextPlayer = joinedPlayers[(currentIndex + 1) % joinedPlayers.length] as any;
@@ -105,33 +121,62 @@ export const wordbombGameMode: GameMode = {
     },
     onTick({room, roomId, io}) {
         const state = room.gameState as GameState;
+        
+        if(!state){
+            return;
+        }
 
         if (!room.started){
-            return
+            return;
         }
 
         if(!state.currentPlayerId){
-            return
+            return;
         }
 
         if(!state.explodesAt){
-            return
+            return;
         }
 
-        if(state.explodesAt <= Date.now()){
-            // TODO : take life away, rn just gonna moe players
-            const joinedPlayers = Object.values(room.players).filter((p)=>p.joined)
-    
-            const currentIndex = joinedPlayers.findIndex((p: any) => p.id === state.currentPlayerId);
+        if (state.explodesAt <= Date.now()) {
+            const alivePlayers = Object.values(room.players).filter(
+                (p) => p.joined && p.lives > 0
+            );
+
+            const currentIndex = alivePlayers.findIndex((p) => p.id === state.currentPlayerId);
             if (currentIndex === -1) return;
 
-            const nextPlayer = joinedPlayers[(currentIndex + 1) % joinedPlayers.length] as any;
+            const currentPlayer = alivePlayers[currentIndex];
+            currentPlayer.lives -= 1;
+
+            const remainingPlayers = Object.values(room.players).filter(
+                (p) => p.joined && p.lives > 0
+            );
+
+            if (remainingPlayers.length < 2) {
+                room.gameState = {
+                    ...state,
+                    status: 'finished',
+                    currentPlayerId: '',
+                    currentInput: ''
+                };
+                resetGame(room);
+                io.to(String(roomId)).emit('game_state', room.gameState);
+                io.to(String(roomId)).emit("room_state", room);
+                return;
+            }
+
+            const nextIndex = remainingPlayers.findIndex((p) => p.id === state.currentPlayerId);
+            const nextPlayer =
+                nextIndex === -1
+                    ? remainingPlayers[0]
+                    : remainingPlayers[(nextIndex + 1) % remainingPlayers.length];
 
             room.gameState = {
-                    ...state,
-                    currentInput: '',
-                    currentPlayerId: nextPlayer.id,
-                    explodesAt: Date.now() + TIME_BEFORE_EXPLODE
+                ...state,
+                currentInput: '',
+                currentPlayerId: nextPlayer.id,
+                explodesAt: Date.now() + TIME_BEFORE_EXPLODE
             };
 
             io.to(String(roomId)).emit('game_state', room.gameState);
