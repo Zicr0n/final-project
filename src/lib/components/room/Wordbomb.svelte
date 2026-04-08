@@ -1,90 +1,139 @@
 <script lang="ts">
-	import { onDestroy, onMount } from "svelte";
-    import { io } from "socket.io-client";
+	import { onDestroy } from 'svelte';
+	import WordBombCanvas from './utilities/WordBombCanvas.svelte';
 
-    let { data, socket } = $props();
+	let { data, socket } = $props();
 
-    let currentStatus = $state("waiting")
+	let currentStatus = $state('waiting');
 
-    let joinedPlayers = $state<{ id: string; username: string; joined: boolean }[]>([]);
-    let holderId = $state("")
+	let joinedPlayers = $state<{ id: string; username: string; joined: boolean }[]>([]);
+	let holderId = $state('');
+	let wordSubmissions = $state<{ userId: string; username: string; word: string }[]>([]);
+	let userInput = $state('');
+	let wordInput: HTMLInputElement | null = $state(null);
 
-    const isMyTurn = $derived(data.user.id === holderId && currentStatus === "playing");
-    let userInput = $state("")
-    let wordSubmissions = $state<{ userId : string, username : string, word : string }[]>([])
+	let cleanup: (() => void) | null = null;
 
-    type GameState = {
-        status: string;
-        currentPlayerId: string;
-        explodesAt: number;
-        submissions : {userId : string, username : string, word : string}[]
-    };
+	let isMyTurn = $derived(currentStatus === 'playing' && holderId === data.user.id);
 
-    type RoomStateEvent = {
-        players: { id: string; username: string; joined: boolean }[];
-    };
+	type GameState = {
+		status: string;
+		currentPlayerId: string;
+		explodesAt: number;
+		submissions: { userId: string; username: string; word: string }[];
+	};
 
-    function submitWord() {
-        const clean = userInput.trim();
-        if (!socket || !isMyTurn || !clean) return;
+	type RoomStateEvent = {
+		players: { id: string; username: string; joined: boolean }[];
+	};
 
-        socket.emit('wordbomb_submit', {
-            word: clean
-        });
+	$effect(() => {
+		if (isMyTurn) {
+			userInput = '';
+			wordInput?.focus();
+		}
+	});
 
-        userInput = '';
-    }
+	$effect(() => {
+		cleanup?.();
+		cleanup = null;
 
-    onMount(()=> {
-        if (socket){
-            socket.on('game_state', ({ status, currentPlayerId, explodesAt, submissions }: GameState) => {
-                console.log("status : " + status)
-                currentStatus = status
-                holderId = currentPlayerId
-                wordSubmissions = submissions
-            });
+		if (!socket) return;
 
-            socket.on('room_state', ({ players: roomPlayers } : RoomStateEvent) => {
-                joinedPlayers = roomPlayers.filter((p) => p.joined);
-            });
+		const onGameState = ({ status, currentPlayerId, explodesAt, submissions }: GameState) => {
+			currentStatus = status;
+			holderId = currentPlayerId;
+			wordSubmissions = submissions;
+			console.log('game_state:', { status, currentPlayerId, explodesAt, submissions });
+		};
 
-            // If returned then the word was wrong
-            socket.on('wordbomb_submit_error', ({ currentPlayerId } : GameState) => {
-                console.log("WRONG WORD!")
-                OnWordWrong(currentPlayerId)
-            }); 
-        }
-    })
+		const onRoomState = ({ players: roomPlayers }: RoomStateEvent) => {
+			joinedPlayers = Object.values(roomPlayers).filter((p) => p.joined);
+		};
 
-    function OnWordWrong(currentPlayerId : string){
-        
-    }
+		const onSubmitError = ({ currentPlayerId }: { currentPlayerId: string }) => {
+			console.log('WRONG WORD!');
+			OnWordWrong(currentPlayerId);
+		};
+
+		socket.on('game_state', onGameState);
+		socket.on('room_state', onRoomState);
+		socket.on('wordbomb_submit_error', onSubmitError);
+
+		cleanup = () => {
+			socket.off('game_state', onGameState);
+			socket.off('room_state', onRoomState);
+			socket.off('wordbomb_submit_error', onSubmitError);
+		};
+
+		return cleanup;
+	});
+
+	onDestroy(() => {
+		cleanup?.();
+	});
+
+	function submitWord(event: SubmitEvent) {
+		event.preventDefault();
+		const clean = userInput.trim();
+
+		if (!socket || !isMyTurn || !clean) return;
+
+		socket.emit('wordbomb_submit', {
+			word: clean
+		});
+
+		userInput = '';
+	}
+
+	function OnWordWrong(currentPlayerId: string) {
+		// put your wrong-word UI logic here
+		console.log('wrong word from player:', currentPlayerId);
+	}
+
+	function OnLetterEntered() {
+		const clean = userInput.trim();
+
+		if (!socket || !isMyTurn || !clean) return;
+
+		socket.emit('wordbomb_letter', { word: clean });
+	}
 </script>
 
-<main>
-<h1>Word Bomb</h1>
-<h1>{currentStatus}</h1>
+<main class="relative h-full">
+	{currentStatus}
 
-{#each joinedPlayers as player}
-    <p class={player.id == holderId ?  "bg-red-500" : "" }>{player.username}</p>
-{/each}
+	{#if currentStatus === 'waiting'}
+		<div class="absolute left-[50%] translate-x-[-50%] w-full flex justify-center my-6">
+			<h1 class="h1">Welcome to WORD BOMB!</h1>
+		</div>
+	{:else if currentStatus === 'playing'}
+		<div class="w-full h-full flex flex-col">
+			<WordBombCanvas />
 
-<!-- If its our turn, display the input-->
-{#if isMyTurn}
-    <p>ITS YO TURN DAWG</p>
-    <form on:submit|preventDefault={submitWord}>
-		<input
-			bind:value={userInput}
-			placeholder="Write your word"
-			autocomplete="off"
-		/>
-		<button type="submit">Send</button>
-	</form>
-{/if}
-
-{#if currentStatus == "playing"}
-    {#each wordSubmissions as {username, userId, word}}
-        <p>{word}</p>
-    {/each}
-{/if}
+			<div class="flex justify-center preset-tonal-surface w-full h-16">
+				<form onsubmit={submitWord} class="flex items-center">
+					<div>
+						<input
+							class="input inline preset-outlined-primary-500 w-48 h-10 text-center self-center"
+							bind:value={userInput}
+							bind:this={wordInput}
+							oninput={OnLetterEntered}
+							placeholder="Write your word"
+							autocomplete="off"
+							id="wordInput"
+							disabled={holderId !== data.user.id}
+						/>
+						<button
+							class="btn preset-filled-primary-500"
+							type="submit"
+							disabled={holderId !== data.user.id}
+						>
+							Send
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	{/if}
 </main>

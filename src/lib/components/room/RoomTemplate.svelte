@@ -4,9 +4,10 @@
 	import io from 'socket.io-client';
 
 	import Wordbomb from './Wordbomb.svelte';
+	import PlayerList from './utilities/PlayerList.svelte';
 	import Chat from './utilities/Chat.svelte';
-	import { Tabs, Avatar } from '@skeletonlabs/skeleton-svelte';
-	import { MessageSquareMore, Users, Cog, DoorOpen, Crown, PanelRightClose, PanelRightOpen } from '@lucide/svelte'
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { MessageSquareMore, Users, Cog, DoorOpen, PanelRightClose, PanelRightOpen } from '@lucide/svelte'
 
 	let { data } = $props();
 
@@ -29,9 +30,14 @@
 	const size = 64;
 	let playerPositions = []
 	let joinedPlayers = $state<{ id: string; username: string, joined : boolean }[]>([])
+	let isJoined : boolean = $state(false)
 
 	$effect(()=> {
-		joinedPlayers = players.filter((p) => p.joined)
+		joinedPlayers = Object.values(players).filter((p) => p.joined)
+	})
+
+	$effect(()=>{
+		isJoined = joinedPlayers.find((p) => p.id == data.user.id) != null
 	})
 
 	function playerPosition(i : number, total : number) {
@@ -70,7 +76,7 @@
 		});
 
 		socket.on('room_state', ({ players: roomPlayers, started : roomStarted, roomType : roomTypes, owner : roomOwner }) => {
-			players = roomPlayers;
+			players = Object.values(roomPlayers);
 			started = roomStarted
 			roomType = roomTypes
 			owner = roomOwner
@@ -88,6 +94,9 @@
 
 	function AttemptJoinGame(){
 		socket?.emit('join_game')
+		console.log("attempted game join")
+		console.log(Object.values(joinedPlayers))
+
 	}
 
 	onDestroy(() => {
@@ -98,9 +107,20 @@
 <!-- TODO : GRADIENT BG-->
 <main class="grid {showSidePanel === true ? "grid-cols-[1fr_400px]" : "grid-cols-[1fr]"} bg-surface-900 relative h-full min-h-0 overflow-hidden">
 	<!-- Game -->
-	{#if roomType == "bomb"}
-		<Wordbomb  {data} {socket}/>
-	{/if}
+	<div class="h-full w-full flex flex-col justify-end">
+		<div class="flex-1">
+			{#if roomType == "bomb"}
+				<Wordbomb  {data} {socket}/>
+			{/if}
+		</div>
+		{#if !isJoined}
+			<div class="flex justify-center preset-tonal-surface h-16 p-2 z-10">
+				<button class="btn btn-lg preset-filled-success-500 w-48 text-center justify-self-center" onclick={AttemptJoinGame}>Join Game</button>
+			</div>
+		{/if}
+	</div>
+
+	
 	<!-- <section class="transition-all relative flex flex-col h-full min-h-0">
 		<div class="h-full flex-1 min-h-0 relative">
 			{#if joinedPlayers.length === 2}
@@ -171,23 +191,7 @@
 						<Chat/>
 					</Tabs.Content>
 					<Tabs.Content value="players" class="h-full">
-						<ul class="w-full flex flex-col h-full gap-2">
-							{#each players as player}
-								<li class="w-full p-2 grid grid-cols-[1fr_3fr]  hover:preset-filled-surface-700-300 transition-all">
-									<Avatar class="size-20">
-										<Avatar.Image src="https://i.pinimg.com/736x/ab/a7/ed/aba7edba49adffc5a74b5f6eae36ed35.jpg" alt="avatar" />
-										<Avatar.Fallback>{player.username.substring(0,2)}</Avatar.Fallback>
-									</Avatar>
-									<div class="flex">
-										<h6 class="h6">{player.username}</h6>
-										<!-- TODO : If owner then mark that-->
-										{#if player.id === owner?.id}
-											<Crown class="text-primary-500 mx-2"/>
-										{/if}
-									</div>
-								</li>
-							{/each}
-						</ul>
+						<PlayerList players={players} ownerId={owner?.id}/>
 					</Tabs.Content>
 					<Tabs.Content value="settings">
 						Settings!

@@ -1,6 +1,6 @@
 import type { GameMode } from "./mode-interface.ts";
 
-const TIME_BEFORE_EXPLODE = 3000
+const TIME_BEFORE_EXPLODE = 10000
 
 type GameState = {
     status : string,
@@ -22,8 +22,15 @@ function resetGame(room: any) {
 		explodesAt: null,
         submissions : []
 	};
+}
 
-    
+async function isValidWord(word : string) {
+    const res = await fetch(
+        `https://api.datamuse.com/words?sp=${word}&max=1`
+    );
+    const data = await res.json();
+
+    return data.length > 0 && data[0].word === word.toLowerCase();
 }
 
 export const wordbombGameMode: GameMode = {
@@ -73,7 +80,7 @@ export const wordbombGameMode: GameMode = {
 
 		io.to(String(roomId)).emit("game_state", room.gameState);
 	},
-    onWordSubmitted({room, roomId, io}, userId, word){
+    async onWordSubmitted({room, roomId, io}, userId, word){
         const state = room.gameState as GameState
      
         // Dont allow players that arent currently selected to submit
@@ -87,11 +94,12 @@ export const wordbombGameMode: GameMode = {
 		if (currentIndex === -1) return;
         
         let cleanWord = word.trim();
-        // TODO : Check word validity
-        // Right now im jsut gonna move to next player
+
+        // Check word validity
+        const wordValid = await isValidWord(cleanWord)
 
         // Is word already used?
-        if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null){
+        if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null || !wordValid){
             console.log("WORD ALREADY USED!")
             io.to(String(roomId)).emit("wordbomb_submit_error", room.gameState);
             return
