@@ -9,7 +9,7 @@
     <Sprite
       x={200}
       y={200}
-      texture={PIXI.Texture.from('/assets/player.webp')}
+      texture={PIXI.Texture.from('/assets/w.webp')}
       anchor={0.5}
       scale={3}
     />
