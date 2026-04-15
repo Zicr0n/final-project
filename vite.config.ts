@@ -87,10 +87,7 @@ const webSocketServer = {
 		};
 
 		const updateOwner = async (roomId: number, ownerId: string) => {
-			await db
-				.update(room)
-				.set({ ownerId: ownerId })
-				.where(eq(room.id, roomId));
+			await db.update(room).set({ ownerId: ownerId }).where(eq(room.id, roomId));
 		};
 
 		const removePlayerFromRoom = async (socket: any) => {
@@ -385,7 +382,7 @@ const webSocketServer = {
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(userId) !== socket.id) return;
 
-				console.log(word)
+				console.log(word);
 			});
 		});
 	}

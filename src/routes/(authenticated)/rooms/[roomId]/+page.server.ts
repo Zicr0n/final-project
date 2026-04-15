@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { room,character } from '$lib/server/db/schema';
+import { room, character } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params, parent, url }) => {
@@ -18,20 +18,20 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 			name: room.name,
 			maxPlayers: room.maxPlayers,
 			playerCount: room.playerCount,
-			type : room.type,
-			ownerId : room.ownerId
+			type: room.type,
+			ownerId: room.ownerId
 		})
 		.from(room)
 		.where(eq(room.id, roomId));
 
 	if (!found) {
-		throw redirect(302, "/rooms")
+		throw redirect(302, '/rooms');
 	}
 
 	const [char] = await db
 		.select({
 			id: character.id,
-			userId : character.userId,
+			userId: character.userId,
 			hatId: character.hatId,
 			shirtId: character.shirtId,
 			eyesId: character.eyesId,

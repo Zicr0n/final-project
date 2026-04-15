@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const name = typeof body.name === 'string' ? body.name.trim() : '';
 	const maxPlayers = Number(body.maxPlayers);
 	const password = typeof body.password === 'string' ? body.password.trim() : '';
-	const ownerId = locals.user?.id
+	const ownerId = locals.user?.id;
 
 	if (!name) {
 		return json({ error: 'Room name cannot be empty.' }, { status: 400 });

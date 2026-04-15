@@ -193,12 +193,7 @@
 			>
 				<h2 id="join-room-title">Enter room password</h2>
 
-				<input
-					type="password"
-					bind:value={joinPassword}
-					placeholder="Password"
-					autofocus
-				/>
+				<input type="password" bind:value={joinPassword} placeholder="Password" autofocus />
 
 				{#if joinError}
 					<p class="error">{joinError}</p>

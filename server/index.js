@@ -24,15 +24,6 @@ const room = pgTable('room', {
 	createdAt: timestamp('created_at').defaultNow().notNull()
 });
 
-const character = pgTable('character', {
-	id: integer().primaryKey().generatedAlwaysAsIdentity(),
-	userId: text('user_id').notNull().unique(),
-	bodyColor: varchar('body_color', { length: 7 }).notNull().default('#ffffff'),
-	hatId: integer('hat_id').default(0),
-	shirtId: integer('shirt_id').default(0),
-	eyesId: integer('eyes_id').default(0)
-});
-
 const port = process.env.PORT || 3000;
 const EMPTY_ROOM_TIMEOUT = 60 * 1000;
 
@@ -55,8 +46,7 @@ const io = new Server(server, {
 
 // ── Helpers ─────────────────────────────────────────
 
-const getPlayerCount = (roomId) =>
-	rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0;
+const getPlayerCount = (roomId) => (rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0);
 
 const getMode = (roomId) => {
 	const currentRoom = rooms[roomId];
@@ -77,7 +67,10 @@ const emitRoomState = (roomId) => {
 };
 
 const updatePlayerCount = async (roomId) => {
-	await db.update(room).set({ playerCount: getPlayerCount(roomId) }).where(eq(room.id, roomId));
+	await db
+		.update(room)
+		.set({ playerCount: getPlayerCount(roomId) })
+		.where(eq(room.id, roomId));
 };
 
 const updateOwner = async (roomId, ownerId) => {

@@ -31,14 +31,14 @@ export const load: PageServerLoad = async ({ parent }) => {
 export const actions = {
 	saveCharacter: async ({ request, locals }) => {
 		const formData = await request.formData();
-		const user = locals.user
+		const user = locals.user;
 		let hatId = Number(formData.get('hatId'));
 		let eyesId = Number(formData.get('eyesId'));
 		let shirtId = Number(formData.get('shirtId'));
-		const bodyColor = formData.get("bodyColor") ?? 0
+		const bodyColor = formData.get('bodyColor') ?? 0;
 
-		if(!user){
-			throw fail(404, {message : "User not found"})
+		if (!user) {
+			throw fail(404, { message: 'User not found' });
 		}
 
 		if (isNaN(hatId) || isNaN(eyesId) || isNaN(shirtId)) {
@@ -49,15 +49,16 @@ export const actions = {
 		if (!VALID_SHIRT_IDS.includes(shirtId)) shirtId = 0;
 		if (!VALID_EYES_IDS.includes(eyesId)) eyesId = 0;
 
-		await db.update(character)
-		.set({
-			hatId : hatId,
-			eyesId: eyesId,
-			shirtId : shirtId,
-			bodyColor : bodyColor
-		})
-		.where(eq(character.userId, user.id))
-		
-		console.log("successful update")
+		await db
+			.update(character)
+			.set({
+				hatId: hatId,
+				eyesId: eyesId,
+				shirtId: shirtId,
+				bodyColor: bodyColor
+			})
+			.where(eq(character.userId, user.id));
+
+		console.log('successful update');
 	}
 };

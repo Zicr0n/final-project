@@ -13,8 +13,8 @@ export const load: PageServerLoad = async (event) => {
 		headers: event.request.headers
 	});
 
-	if (!session?.user){
-		return fail(404, {error : "Unexpected Error"})
+	if (!session?.user) {
+		return fail(404, { error: 'Unexpected Error' });
 	}
 
 	const profileUser = await db.query.user.findFirst({
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async (event) => {
 
 	const isOwner = session?.user.id === profileUser.id;
 
-	const friendStatus = await getFriendStatus(session?.user.id, profileUser.id)
+	const friendStatus = await getFriendStatus(session?.user.id, profileUser.id);
 
 	return {
 		friendStatus,
@@ -37,18 +37,19 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
-	sendRequest: async ({ request , params }) => {
-		const receiverId = params.id
+	sendRequest: async ({ request, params }) => {
+		const receiverId = params.id;
 
 		const sender = await auth.api.getSession({
 			headers: request.headers
 		});
 
-		const senderId = sender?.user.id
+		const senderId = sender?.user.id;
 
-		console.log("USER " + senderId + " IS SENDING A REQUEST TO " + receiverId)
+		console.log('USER ' + senderId + ' IS SENDING A REQUEST TO ' + receiverId);
 
-		const existing = await db.select()
+		const existing = await db
+			.select()
 			.from(friendRequest)
 			.where(
 				or(
@@ -58,11 +59,11 @@ export const actions: Actions = {
 			)
 			.limit(1);
 
-		if (existing.length) return fail(400, { message: "Request already exists" });
+		if (existing.length) return fail(400, { message: 'Request already exists' });
 
 		await db.insert(friendRequest).values({
-            senderId: senderId,
-            receiverId: receiverId,
-        });
+			senderId: senderId,
+			receiverId: receiverId
+		});
 	}
-}
+};

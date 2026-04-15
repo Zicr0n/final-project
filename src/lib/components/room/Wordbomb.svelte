@@ -104,18 +104,18 @@
 	{currentStatus}
 
 	{#if currentStatus === 'waiting'}
-		<div class="absolute left-[50%] translate-x-[-50%] w-full flex justify-center my-6">
+		<div class="absolute left-[50%] my-6 flex w-full translate-x-[-50%] justify-center">
 			<h1 class="h1">Welcome to WORD BOMB!</h1>
 		</div>
 	{:else if currentStatus === 'playing'}
-		<div class="w-full h-full flex flex-col">
+		<div class="flex h-full w-full flex-col">
 			<WordBombCanvas />
 
-			<div class="flex justify-center preset-tonal-surface w-full h-16">
+			<div class="flex h-16 w-full justify-center preset-tonal-surface">
 				<form onsubmit={submitWord} class="flex items-center">
 					<div>
 						<input
-							class="input inline preset-outlined-primary-500 w-48 h-10 text-center self-center"
+							class="input inline h-10 w-48 self-center preset-outlined-primary-500 text-center"
 							bind:value={userInput}
 							bind:this={wordInput}
 							oninput={OnLetterEntered}

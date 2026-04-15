@@ -5,19 +5,20 @@ import { ilike } from 'drizzle-orm';
 import { ne, and } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ url, params, parent }) => {
-    const data = await parent()
-    const query = url.searchParams.get("q")?.trim() ?? "";
+	const data = await parent();
+	const query = url.searchParams.get('q')?.trim() ?? '';
 
-    if (!query) return { results: [], query: "" };
+	if (!query) return { results: [], query: '' };
 
-    const results = await db.select({
-        id: user.id,
-        username: user.username,
-        image: user.image,
-    })
-    .from(user)
-    .where(and(ilike(user.username, `%${query}%`),  ne(user.id, data.user.id)) )
-    .limit(20);
+	const results = await db
+		.select({
+			id: user.id,
+			username: user.username,
+			image: user.image
+		})
+		.from(user)
+		.where(and(ilike(user.username, `%${query}%`), ne(user.id, data.user.id)))
+		.limit(20);
 
-    return { results, query };
+	return { results, query };
 };

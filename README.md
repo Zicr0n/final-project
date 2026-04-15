@@ -17,6 +17,7 @@ Chatta, socialisera, spela
 Främst för att lära mig websockets, men också för att multiplayer är kul.
 
 ### Inspiration:
+
 jklm.fun, skribbl.io, Discord, Whatsapp, geoguesser
 
 # Teknisk implementation för [Ditt projekt]
@@ -57,7 +58,7 @@ jklm.fun, skribbl.io, Discord, Whatsapp, geoguesser
 - Profiler (redigera sin egen, skicka vänförfrågningar, lägga upp
   profilbild, customiza sin profilsida)
 - Inställningar (ändra lösenord, email, profilbild)
-- Character Customization, 
+- Character Customization,
 
 ## 5. Kryptering
 
@@ -121,5 +122,6 @@ jklm.fun, skribbl.io, Discord, Whatsapp, geoguesser
 <b>Authentication tokens</b> - Säker session-hantering
 
 ### INSPO
+
 1
 <a href="https://discord.com/"> discord.com </a>
