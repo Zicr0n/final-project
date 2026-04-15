@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import pg from 'pg';
 import argon2 from 'argon2';
 import 'dotenv/config';
-import { gameModes } from '../lib/game-modes/index.js';
+import { gameModes } from '../src/lib/game-modes/index.js';
 
 const { Pool } = pg;
 
