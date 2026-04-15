@@ -5,4 +5,4 @@ export const gameModes = {
 	pop: null,
 	scribble: null,
 	vote: null
-} as const;
+};
