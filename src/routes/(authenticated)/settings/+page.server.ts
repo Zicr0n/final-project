@@ -132,7 +132,7 @@ export const actions: Actions = {
 
 		await db
 			.update(user)
-			.set({ imageUrl })
+			.set({ image : imageUrl })
 			.where(eq(user.id, thisUser.id));
 
 		return { success: true, imageUrl };
