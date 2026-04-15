@@ -12,7 +12,7 @@
 		>
 			<Avatar class="size-20">
 				<Avatar.Image
-					src="https://i.pinimg.com/736x/ab/a7/ed/aba7edba49adffc5a74b5f6eae36ed35.jpg"
+					src={player.imageUrl}
 					alt="avatar"
 				/>
 				<Avatar.Fallback>{player.username.substring(0, 2)}</Avatar.Fallback>

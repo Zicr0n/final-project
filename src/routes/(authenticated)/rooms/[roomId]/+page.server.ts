@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 			maxPlayers: room.maxPlayers,
 			playerCount: room.playerCount,
 			type: room.type,
-			ownerId: room.ownerId
+			ownerId: room.ownerId,
 		})
 		.from(room)
 		.where(eq(room.id, roomId));
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 			hatId: character.hatId,
 			shirtId: character.shirtId,
 			eyesId: character.eyesId,
-			bodyColor: character.bodyColor
+			bodyColor: character.bodyColor,
 		})
 		.from(character)
 		.where(eq(character.userId, user.id));

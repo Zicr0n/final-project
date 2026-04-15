@@ -44,7 +44,6 @@
 			currentStatus = status;
 			holderId = currentPlayerId;
 			wordSubmissions = submissions;
-			console.log('game_state:', { status, currentPlayerId, explodesAt, submissions });
 		};
 
 		const onRoomState = ({ players: roomPlayers }: RoomStateEvent) => {
@@ -52,7 +51,6 @@
 		};
 
 		const onSubmitError = ({ currentPlayerId }: { currentPlayerId: string }) => {
-			console.log('WRONG WORD!');
 			OnWordWrong(currentPlayerId);
 		};
 

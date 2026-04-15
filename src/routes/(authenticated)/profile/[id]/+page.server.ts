@@ -46,8 +46,6 @@ export const actions: Actions = {
 
 		const senderId = sender?.user.id;
 
-		console.log('USER ' + senderId + ' IS SENDING A REQUEST TO ' + receiverId);
-
 		const existing = await db
 			.select()
 			.from(friendRequest)

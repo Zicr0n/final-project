@@ -28,7 +28,6 @@ export const actions: Actions = {
 				}
 			});
 		} catch (error) {
-			console.log(error);
 
 			if (error instanceof APIError) {
 				return fail(400, { message: error.message || 'Signin failed' });
@@ -89,7 +88,6 @@ export const actions: Actions = {
 				});
 			}
 		} catch (error) {
-			console.log(error);
 
 			if (error instanceof APIError) {
 				return fail(400, { message: error.message || 'Registration failed' });

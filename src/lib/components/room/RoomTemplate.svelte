@@ -52,13 +52,15 @@
 		};
 	}
 
+
 	onMount(() => {
 		connectionStatus = 'connecting';
 
-		socket = io({
+		const socket = io({
 			auth: {
 				userId: data.user.id,
-				username: data.user.username
+				username: data.user.username,
+				imageUrl: data.user.image
 			}
 		});
 
@@ -101,8 +103,6 @@
 
 	function AttemptJoinGame() {
 		socket?.emit('join_game');
-		console.log('attempted game join');
-		console.log(Object.values(joinedPlayers));
 	}
 
 	onDestroy(() => {
@@ -163,7 +163,7 @@
 					<Tabs.Trigger class="h-12 flex-1 rounded-none" value="leave"><DoorOpen /></Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="chat" class="h-full">
-					<Chat />
+					<Chat/>
 				</Tabs.Content>
 				<Tabs.Content value="players" class="h-full">
 					<PlayerList {players} ownerId={owner?.id} />

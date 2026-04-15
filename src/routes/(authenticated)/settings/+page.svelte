@@ -2,6 +2,8 @@
 	import { authClient } from '$lib/client';
 	import { onMount } from 'svelte';
 
+	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
+
 	let sessions = $state([]);
 	let { data, form } = $props();
 
@@ -14,8 +16,6 @@
 	onMount(async () => {
 		const fetch = await authClient.listSessions();
 		sessions = fetch.data;
-
-		console.log(sessions);
 	});
 
 	async function RemoveSession(token) {
@@ -33,7 +33,6 @@
 	}
 
 	function handleSubmit(event) {
-		console.log('submit');
 		event.preventDefault();
 		errorMessage = '';
 
@@ -56,9 +55,58 @@
 		// If valid → submit form
 		event.target.submit();
 	}
+	let previewProfilePicture = $state("");
+
+	function handleFileSelect(event) {
+		const file = event.target.files[0];
+		if (file) {
+			// Hur skapar du en preview URL?
+			const url = URL.createObjectURL(file);
+
+			if (url) {
+				previewProfilePicture = url;
+			}
+		}
+	}
 </script>
 
+<!-- <main class="grid grid-cols-[500px_1fr] p-8">
+	<section>
+		<SideTab/>
+	</section>
+</main> -->
+
 <div>
+<form method="POST" action="?/uploadProfile" enctype="multipart/form-data">
+	{#if form?.fileSize}<div>file size</div>{/if}
+	{#if form?.filetype}<div>file type</div>{/if}
+	{#if form?.error}<div>error</div>{/if}
+
+	<FileUpload class="w-fit" maxFiles={1} maxFileSize={5 * 1024 * 1024} allowDrop accept={['image/*']}>
+		<FileUpload.Trigger>Browse Images</FileUpload.Trigger>
+		<FileUpload.HiddenInput name="image" onchange={handleFileSelect}/>
+		<FileUpload.ItemGroup>
+		<FileUpload.Context>
+			{#snippet children(fileUpload)}
+				{#each fileUpload().acceptedFiles as file (file.name)}
+					<FileUpload.Item {file}>
+						<img src={previewProfilePicture} alt="preview" />
+						<FileUpload.ItemName>{file.name}</FileUpload.ItemName>
+						<FileUpload.ItemSizeText>{file.size} bytes</FileUpload.ItemSizeText>
+						<FileUpload.ItemDeleteTrigger />
+					</FileUpload.Item>
+				{/each}
+			{/snippet}
+		</FileUpload.Context>
+		</FileUpload.ItemGroup>
+	</FileUpload>
+	<button type="submit" class="btn-base btn preset-filled-success-500">Upload Image</button>
+</form>
+
+	{#if data.user.image}
+		<img src={data.user.image} alt="avatar" class="h-32 w-32 rounded-full object-cover" />
+	{/if}
+
 	<h1 class="text-4xl">{data.user.name}</h1>
 	<h1 class="text-4xl">{data.user.username}</h1>
 	<h1 class="text-4xl">{data.user.displayUsername}</h1>

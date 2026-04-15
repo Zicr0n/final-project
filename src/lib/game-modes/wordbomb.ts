@@ -69,7 +69,6 @@ export const wordbombGameMode: GameMode = {
 		}
 
 		if (remaining.length < 2) {
-			console.log('less than two');
 			resetGame(room);
 			io.to(String(roomId)).emit('room_state', room);
 		}
@@ -96,7 +95,6 @@ export const wordbombGameMode: GameMode = {
 
 		// Is word already used?
 		if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null || !wordValid) {
-			console.log('WORD ALREADY USED!');
 			io.to(String(roomId)).emit('wordbomb_submit_error', room.gameState);
 			return;
 		}

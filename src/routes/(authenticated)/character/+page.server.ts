@@ -58,7 +58,5 @@ export const actions = {
 				bodyColor: bodyColor
 			})
 			.where(eq(character.userId, user.id));
-
-		console.log('successful update');
 	}
 };

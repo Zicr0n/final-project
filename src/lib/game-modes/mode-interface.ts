@@ -11,6 +11,7 @@ export type RoomPlayer = {
 	username: string;
 	joined: boolean;
 	lives: number;
+	imageUrl: string;
 };
 
 export type GameModeContext = {

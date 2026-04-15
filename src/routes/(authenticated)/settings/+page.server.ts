@@ -1,15 +1,17 @@
-import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { redirect, fail } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/db/schema';
-import type { Actions } from './$types';
 import { eq } from 'drizzle-orm';
-import { fail } from '@sveltejs/kit';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { r2 } from '$lib/server/r2';
+import { R2_BUCKET } from '$env/static/private';
+import { PUBLIC_R2_BASE_URL } from '$env/static/public';
 
-export const load: PageServerLoad = async ({ params, parent }) => {
+export const load: PageServerLoad = async ({ parent }) => {
 	const { user } = await parent();
-	return { user: user };
+	return { user };
 };
 
 export const actions: Actions = {
@@ -19,6 +21,7 @@ export const actions: Actions = {
 		});
 		return redirect(302, '/login');
 	},
+
 	changePassword: async ({ request }) => {
 		const formData = await request.formData();
 		const newPassword = formData.get('newPassword');
@@ -33,24 +36,23 @@ export const actions: Actions = {
 		}
 
 		try {
-			const data = await auth.api.changePassword({
+			await auth.api.changePassword({
 				body: {
-					newPassword: newPassword, // required
-					currentPassword: currentPassword, // required
+					newPassword,
+					currentPassword,
 					revokeOtherSessions: true
 				},
-				// This endpoint requires session cookies.
 				headers: request.headers
 			});
 
 			return redirect(303, '/settings');
-		} catch (error) {
-			console.log(error);
-			return fail(error.statusCode, {
-				error: error?.body?.message
+		} catch (error: any) {
+			return fail(error.statusCode ?? 400, {
+				error: error?.body?.message ?? 'Failed to change password'
 			});
 		}
 	},
+
 	changeUsername: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const username = formData.get('username');
@@ -60,31 +62,79 @@ export const actions: Actions = {
 		}
 
 		const userId = locals.user?.id;
-
 		if (!userId) {
 			return fail(401, { error: 'Not authenticated' });
 		}
 
 		const response = await auth.api.isUsernameAvailable({
-			body: {
-				username: username // required
-			}
+			body: { username }
 		});
 
 		try {
 			if (response?.available) {
-				const data = await auth.api.updateUser({
-					body: {
-						username: username
-					},
+				await auth.api.updateUser({
+					body: { username },
 					headers: request.headers
 				});
-			} else {
-				return fail(400, { error: 'Username already taken!' });
+				return { success: true };
 			}
-		} catch (error) {
-			console.log(error);
-			return fail(400, { error: error.message });
+
+			return fail(400, { error: 'Username already taken!' });
+		} catch (error: any) {
+			return fail(400, { error: error.message ?? 'Failed to change username' });
 		}
+	},
+
+	uploadProfile: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const file = formData.get('image');
+		const thisUser = locals.user;
+
+		if (!thisUser) {
+			return fail(401, { error: 'User not found' });
+		}
+
+		if (!(file instanceof File)) {
+			return fail(400, { error: 'No file uploaded', filetype: true });
+		}
+
+		const validImageTypes = ['image/gif', 'image/jpeg', 'image/png', 'image/apng', 'image/webp'];
+		if (!validImageTypes.includes(file.type)) {
+			return fail(400, { error: 'Invalid file type', filetype: true });
+		}
+
+		const maxSize = 5 * 1024 * 1024;
+		if (file.size > maxSize) {
+			return fail(400, { error: 'File too large', fileSize: true });
+		}
+
+		const extMap: Record<string, string> = {
+			'image/png': 'png',
+			'image/jpeg': 'jpg',
+			'image/gif': 'gif',
+			'image/apng': 'png',
+			'image/webp': 'webp'
+		};
+
+		const key = `avatars/${thisUser.id}.jpg`;
+		const body = Buffer.from(await file.arrayBuffer());
+
+		await r2.send(
+			new PutObjectCommand({
+				Bucket: R2_BUCKET,
+				Key: key,
+				Body: body,
+				ContentType: 'image/jpeg'
+			})
+		);
+
+		const imageUrl = `${PUBLIC_R2_BASE_URL}/${key}`;
+
+		await db
+			.update(user)
+			.set({ imageUrl })
+			.where(eq(user.id, thisUser.id));
+
+		return { success: true, imageUrl };
 	}
 };

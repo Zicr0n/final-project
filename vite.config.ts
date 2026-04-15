@@ -19,13 +19,14 @@ type RoomPlayer = {
 	id: string;
 	username: string;
 	joined: boolean;
+	imageUrl: string;
 };
 
 enum RoomType {
 	BOMB,
-	POP, // TODO
-	SCRIBBLE, // TODO
-	VOTE // TODO
+	POP,
+	SCRIBBLE,
+	VOTE
 }
 
 const rooms: Record<
@@ -40,7 +41,6 @@ const rooms: Record<
 	}
 > = {};
 
-// roomId -> (userId -> socketId)
 const roomUserSockets = new Map<number, Map<string, string>>();
 
 const webSocketServer = {
@@ -149,8 +149,6 @@ const webSocketServer = {
 			const currentRoom = rooms[roomId];
 			if (!currentRoom) return;
 
-			console.log(Object.values(currentRoom.players));
-
 			io.to(String(roomId)).emit('room_state', {
 				players: Object.values(currentRoom.players),
 				started: currentRoom.started,
@@ -186,7 +184,7 @@ const webSocketServer = {
 		};
 
 		io.on('connection', (socket) => {
-			const { userId, username } = socket.handshake.auth ?? {};
+			const { userId, username, imageUrl } = socket.handshake.auth ?? {};
 
 			if (!userId || !username) {
 				socket.disconnect();
@@ -195,6 +193,7 @@ const webSocketServer = {
 
 			socket.data.userId = String(userId);
 			socket.data.username = String(username);
+			socket.data.imageUrl = imageUrl ? String(imageUrl) : '';
 
 			socket.on(
 				'join_room',
@@ -283,7 +282,8 @@ const webSocketServer = {
 					currentRoom.players[socket.data.userId] = {
 						id: socket.data.userId,
 						username: socket.data.username,
-						joined: false
+						joined: false,
+						imageUrl: socket.data.imageUrl
 					};
 
 					if (!currentRoom.owner) {
@@ -333,11 +333,7 @@ const webSocketServer = {
 
 				emitRoomState(roomId);
 
-				console.log(room.players);
-
 				if (joinedCount > 1) {
-					// TODO : start timer (which pasued when settings
-					// are being edited) then start the game
 					room.started = true;
 
 					const mode = getMode(roomId);
@@ -381,8 +377,6 @@ const webSocketServer = {
 
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(userId) !== socket.id) return;
-
-				console.log(word);
 			});
 		});
 	}
