@@ -1,4 +1,5 @@
 CREATE TYPE "public"."friend_status" AS ENUM('pending', 'accepted', 'rejected');--> statement-breakpoint
+CREATE TYPE "public"."room_type" AS ENUM('bomb', 'pop', 'scribble', 'vote');--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
@@ -19,9 +20,9 @@ CREATE TABLE "character" (
 	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "character_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
 	"user_id" text NOT NULL,
 	"body_color" varchar(7) DEFAULT '#ffffff' NOT NULL,
-	"hat_id" integer,
-	"shirt_id" integer,
-	"eyes_id" integer,
+	"hat_id" integer DEFAULT 0,
+	"shirt_id" integer DEFAULT 0,
+	"eyes_id" integer DEFAULT 0,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "character_user_id_unique" UNIQUE("user_id")
 );
@@ -40,6 +41,18 @@ CREATE TABLE "gallery_image" (
 	"url" varchar(512) NOT NULL,
 	"caption" text,
 	"uploaded_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "room" (
+	"id" integer PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "room_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"name" text NOT NULL,
+	"max_players" integer DEFAULT 10 NOT NULL,
+	"player_count" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"password_hash" text,
+	"is_private" boolean DEFAULT false,
+	"type" "room_type" DEFAULT 'bomb' NOT NULL,
+	"owner_id" text NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "session" (
@@ -82,6 +95,7 @@ ALTER TABLE "character" ADD CONSTRAINT "character_user_id_user_id_fk" FOREIGN KE
 ALTER TABLE "friend_request" ADD CONSTRAINT "friend_request_sender_id_user_id_fk" FOREIGN KEY ("sender_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "friend_request" ADD CONSTRAINT "friend_request_receiver_id_user_id_fk" FOREIGN KEY ("receiver_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "gallery_image" ADD CONSTRAINT "gallery_image_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "room" ADD CONSTRAINT "room_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
