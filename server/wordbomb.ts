@@ -1,0 +1,182 @@
+import type { GameMode } from './mode-interface.ts';
+
+const TIME_BEFORE_EXPLODE = 10000;
+
+type GameState = {
+	status: string;
+	submissions: { userId: string; username: string; word: string }[];
+	explodesAt: null | number;
+	currentPlayerId: string | null;
+};
+
+function resetGame(room: any) {
+	for (const player of Object.values(room.players) as { joined: boolean; lives: number }[]) {
+		player.joined = false;
+		player.lives = 1;
+	}
+
+	room.started = false;
+	room.gameState = {
+		status: 'waiting',
+		currentPlayerId: null,
+		explodesAt: null,
+		submissions: []
+	};
+}
+
+async function isValidWord(word: string) {
+	const res = await fetch(`https://api.datamuse.com/words?sp=${word}&max=1`);
+	const data = await res.json();
+
+	return data.length > 0 && data[0].word === word.toLowerCase();
+}
+
+export const wordbombGameMode: GameMode = {
+	initMode: () => ({
+		status: 'waiting',
+		currentPlayerId: null,
+		explodesAt: null,
+		submissions: []
+	}),
+
+	onGameStart: ({ room, roomId, io }) => {
+		const playersJoined = Object.values(room.players).filter((player) => player.joined);
+
+		if (playersJoined.length < 2) return;
+
+		room.gameState = {
+			status: 'playing',
+			currentPlayerId: playersJoined[0].id,
+			explodesAt: Date.now() + TIME_BEFORE_EXPLODE,
+			submissions: []
+		};
+
+		for (const player of playersJoined as { joined: boolean; lives: number }[]) {
+			player.lives = 1;
+		}
+
+		io.to(String(roomId)).emit('game_state', room.gameState);
+		io.to(String(roomId)).emit('room_state', room);
+	},
+
+	onPlayerLeave({ room, roomId, io }, userId) {
+		const state = room.gameState as GameState;
+
+		const remaining = Object.values(room.players).filter((p) => p.joined && p.id !== userId);
+
+		if (state.currentPlayerId === userId) {
+			state.currentPlayerId = remaining[0]?.id ?? null;
+		}
+
+		if (remaining.length < 2) {
+			resetGame(room);
+			io.to(String(roomId)).emit('room_state', room);
+		}
+
+		io.to(String(roomId)).emit('game_state', room.gameState);
+	},
+	async onWordSubmitted({ room, roomId, io }, userId, word) {
+		const state = room.gameState as GameState;
+
+		// Dont allow players that arent currently selected to submit
+		if (state.currentPlayerId !== userId) {
+			return;
+		}
+
+		const joinedPlayers = Object.values(room.players).filter((p) => p.joined);
+
+		const currentIndex = joinedPlayers.findIndex((p: any) => p.id === userId);
+		if (currentIndex === -1) return;
+
+		let cleanWord = word.trim();
+
+		// Check word validity
+		const wordValid = await isValidWord(cleanWord);
+
+		// Is word already used?
+		if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null || !wordValid) {
+			io.to(String(roomId)).emit('wordbomb_submit_error', room.gameState);
+			return;
+		}
+
+		const currentPlayer = joinedPlayers[currentIndex] as any;
+		const nextPlayer = joinedPlayers[(currentIndex + 1) % joinedPlayers.length] as any;
+
+		room.gameState = {
+			...state,
+			currentInput: '',
+			submissions: [
+				...state.submissions,
+				{
+					userId,
+					username: currentPlayer.username,
+					word: cleanWord,
+					createdAt: Date.now()
+				}
+			],
+			currentPlayerId: nextPlayer.id,
+			explodesAt: Date.now() + TIME_BEFORE_EXPLODE
+		};
+
+		io.to(String(roomId)).emit('game_state', room.gameState);
+	},
+	onTick({ room, roomId, io }) {
+		const state = room.gameState as GameState;
+
+		if (!state) {
+			return;
+		}
+
+		if (!room.started) {
+			return;
+		}
+
+		if (!state.currentPlayerId) {
+			return;
+		}
+
+		if (!state.explodesAt) {
+			return;
+		}
+
+		if (state.explodesAt <= Date.now()) {
+			const alivePlayers = Object.values(room.players).filter((p) => p.joined && p.lives > 0);
+
+			const currentIndex = alivePlayers.findIndex((p) => p.id === state.currentPlayerId);
+			if (currentIndex === -1) return;
+
+			const currentPlayer = alivePlayers[currentIndex];
+			currentPlayer.lives -= 1;
+
+			const remainingPlayers = Object.values(room.players).filter((p) => p.joined && p.lives > 0);
+
+			if (remainingPlayers.length < 2) {
+				room.gameState = {
+					...state,
+					status: 'finished',
+					currentPlayerId: '',
+					currentInput: ''
+				};
+				resetGame(room);
+				io.to(String(roomId)).emit('game_state', room.gameState);
+				io.to(String(roomId)).emit('room_state', room);
+				return;
+			}
+
+			const nextIndex = remainingPlayers.findIndex((p) => p.id === state.currentPlayerId);
+			const nextPlayer =
+				nextIndex === -1
+					? remainingPlayers[0]
+					: remainingPlayers[(nextIndex + 1) % remainingPlayers.length];
+
+			room.gameState = {
+				...state,
+				currentInput: '',
+				currentPlayerId: nextPlayer.id,
+				explodesAt: Date.now() + TIME_BEFORE_EXPLODE
+			};
+
+			io.to(String(roomId)).emit('game_state', room.gameState);
+		}
+	}
+};
