@@ -27,6 +27,7 @@
 	let connectionStatus = $state<'connecting' | 'connected' | 'disconnected'>('connecting');
 	let players = $state<{ id: string; username: string; joined: boolean }[]>([]);
 	let roomType = $state('bomb');
+	let started = $state(false);
 	let owner = $state<{ id: string; username: string; joined: boolean }>();
 
 	let showSidePanel: boolean = $state(true);
@@ -44,19 +45,19 @@
 		isJoined = joinedPlayers.find((p) => p.id == data.user.id) != null;
 	});
 
-	function playerPosition(i: number, total: number) {
-		const angle = (i / total) * Math.PI * 2;
-		return {
-			x: Math.cos(angle) * radius,
-			y: Math.sin(angle) * radius
-		};
-	}
+	// function playerPosition(i: number, total: number) {
+	// 	const angle = (i / total) * Math.PI * 2;
+	// 	return {
+	// 		x: Math.cos(angle) * radius,
+	// 		y: Math.sin(angle) * radius
+	// 	};
+	// }
 
 
 	onMount(() => {
 		connectionStatus = 'connecting';
 
-		const socket = io({
+		socket = io({
 			auth: {
 				userId: data.user.id,
 				username: data.user.username,
@@ -102,7 +103,9 @@
 	});
 
 	function AttemptJoinGame() {
+		console.log("attempted join client")
 		socket?.emit('join_game');
+		console.log("emit socket")
 	}
 
 	onDestroy(() => {

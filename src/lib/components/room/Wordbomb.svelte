@@ -11,6 +11,7 @@
 	let wordSubmissions = $state<{ userId: string; username: string; word: string }[]>([]);
 	let userInput = $state('');
 	let wordInput: HTMLInputElement | null = $state(null);
+	let promptToWrite = $state("")
 
 	let cleanup: (() => void) | null = null;
 
@@ -21,6 +22,7 @@
 		currentPlayerId: string;
 		explodesAt: number;
 		submissions: { userId: string; username: string; word: string }[];
+		currentPrompt : string
 	};
 
 	type RoomStateEvent = {
@@ -40,10 +42,11 @@
 
 		if (!socket) return;
 
-		const onGameState = ({ status, currentPlayerId, explodesAt, submissions }: GameState) => {
+		const onGameState = ({ status, currentPlayerId, submissions, currentPrompt }: GameState) => {
 			currentStatus = status;
 			holderId = currentPlayerId;
 			wordSubmissions = submissions;
+			promptToWrite = currentPrompt
 		};
 
 		const onRoomState = ({ players: roomPlayers }: RoomStateEvent) => {
@@ -106,6 +109,7 @@
 			<h1 class="h1">Welcome to WORD BOMB!</h1>
 		</div>
 	{:else if currentStatus === 'playing'}
+		<h1 class="h1">CURRENT PROMPT : {promptToWrite}</h1>
 		<div class="flex h-full w-full flex-col">
 			<WordBombCanvas />
 

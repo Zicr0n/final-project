@@ -4,6 +4,7 @@ export type ServerRoom = {
 	started: boolean;
 	roomType: string;
 	gameState: unknown;
+	prompts: Array<string> | null;
 };
 
 export type RoomPlayer = {

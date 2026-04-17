@@ -1,4 +1,4 @@
-import { wordbombGameMode } from './wordbomb.ts';
+import { wordbombGameMode } from './wordbomb/wordbomb.ts';
 
 export const gameModes = {
 	bomb: wordbombGameMode,

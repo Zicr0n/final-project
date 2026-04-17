@@ -277,6 +277,8 @@ const webSocketServer = {
 					socket.join(String(roomId));
 					socket.data.roomId = roomId;
 
+					console.log("joined room")
+
 					roomSockets.set(socket.data.userId, socket.id);
 
 					currentRoom.players[socket.data.userId] = {
@@ -315,16 +317,21 @@ const webSocketServer = {
 			});
 
 			socket.on('join_game', async () => {
+				console.log("join game called")
 				const roomId = Number(socket.data.roomId);
 				const joinedUserId = socket.data.userId;
 				const room = rooms[roomId];
 
 				if (!joinedUserId || !room) return;
 
+				console.log("user exists and room exists")
+
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(joinedUserId) !== socket.id) return;
 
 				if (room.started) return;
+
+				console.log("room is not started")
 				if (!room.players[joinedUserId]) return;
 
 				room.players[joinedUserId].joined = true;
