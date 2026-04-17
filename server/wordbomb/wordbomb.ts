@@ -1,4 +1,5 @@
-import type { GameMode } from './mode-interface.ts';
+import type { GameMode } from '../mode-interface.ts';
+import prompts from './prompts.json';
 
 const TIME_BEFORE_EXPLODE = 10000;
 
@@ -7,6 +8,7 @@ type GameState = {
 	submissions: { userId: string; username: string; word: string }[];
 	explodesAt: null | number;
 	currentPlayerId: string | null;
+	currentPrompt : string;
 };
 
 function resetGame(room: any) {
@@ -20,15 +22,26 @@ function resetGame(room: any) {
 		status: 'waiting',
 		currentPlayerId: null,
 		explodesAt: null,
-		submissions: []
+		submissions: [],
+		currentPrompt : ""
 	};
 }
 
-async function isValidWord(word: string) {
+
+function GenerateGamePrompts(minAmount : number=500): string[] {
+	let promptsAdjusted = prompts.filter(p => p.count > minAmount)
+	return promptsAdjusted.map((item: { prompt: string; count: number }) => item.prompt);
+
+}
+async function isValidWord(word: string, prompt : string) {
 	const res = await fetch(`https://api.datamuse.com/words?sp=${word}&max=1`);
 	const data = await res.json();
 
-	return data.length > 0 && data[0].word === word.toLowerCase();
+	return data.length > 0 && data[0].word === word.toLowerCase() && word.includes(prompt) && word.length > prompt.length;
+}
+
+function GeneratePrompt(prompts : Array<string>){
+	return prompts[Math.floor(Math.random() * prompts.length)];
 }
 
 export const wordbombGameMode: GameMode = {
@@ -36,7 +49,8 @@ export const wordbombGameMode: GameMode = {
 		status: 'waiting',
 		currentPlayerId: null,
 		explodesAt: null,
-		submissions: []
+		submissions: [],
+		currentPrompt: ''
 	}),
 
 	onGameStart: ({ room, roomId, io }) => {
@@ -44,16 +58,22 @@ export const wordbombGameMode: GameMode = {
 
 		if (playersJoined.length < 2) return;
 
+		let prompts = GenerateGamePrompts();
+		room.prompts = prompts
+
 		room.gameState = {
 			status: 'playing',
 			currentPlayerId: playersJoined[0].id,
 			explodesAt: Date.now() + TIME_BEFORE_EXPLODE,
-			submissions: []
+			submissions: [],
+			currentPrompt : GeneratePrompt(prompts)
 		};
 
 		for (const player of playersJoined as { joined: boolean; lives: number }[]) {
 			player.lives = 1;
 		}
+
+		console.log(room.gameState)
 
 		io.to(String(roomId)).emit('game_state', room.gameState);
 		io.to(String(roomId)).emit('room_state', room);
@@ -91,7 +111,7 @@ export const wordbombGameMode: GameMode = {
 		let cleanWord = word.trim();
 
 		// Check word validity
-		const wordValid = await isValidWord(cleanWord);
+		const wordValid = await isValidWord(cleanWord, state.currentPrompt);
 
 		// Is word already used?
 		if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null || !wordValid) {
@@ -115,8 +135,11 @@ export const wordbombGameMode: GameMode = {
 				}
 			],
 			currentPlayerId: nextPlayer.id,
-			explodesAt: Date.now() + TIME_BEFORE_EXPLODE
+			explodesAt: Date.now() + TIME_BEFORE_EXPLODE,
+			currentPrompt: GeneratePrompt(room.prompts || ["zic"])
 		};
+
+		console.log(room.gameState)
 
 		io.to(String(roomId)).emit('game_state', room.gameState);
 	},
