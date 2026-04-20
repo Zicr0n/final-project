@@ -19,7 +19,7 @@ export const actions: Actions = {
 		await auth.api.signOut({
 			headers: event.request.headers
 		});
-		return redirect(302, '/login');
+		return redirect(302, '/');
 	},
 
 	changePassword: async ({ request }) => {
@@ -116,17 +116,21 @@ export const actions: Actions = {
 			'image/webp': 'webp'
 		};
 
-		const key = `avatars/${thisUser.id}.jpg`;
 		const body = Buffer.from(await file.arrayBuffer());
+
+		const fileType = file.type;
+		const ext = fileType.split('/')[1];
+
+		const key = `avatars/${thisUser.id}.${ext}`;
 
 		await r2.send(
 			new PutObjectCommand({
 				Bucket: R2_BUCKET,
 				Key: key,
 				Body: body,
-				ContentType: 'image/jpeg'
-			})
-		);
+				ContentType: fileType
+		})
+);
 
 		const imageUrl = `${PUBLIC_R2_BASE_URL}/${key}`;
 

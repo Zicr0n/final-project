@@ -14,7 +14,7 @@ export const load: PageServerLoad = async (event) => {
 	});
 
 	if (!session?.user) {
-		return fail(404, { error: 'Unexpected Error' });
+		throw error(401, 'Unauthorized');
 	}
 
 	const friendRequests = await db
@@ -38,12 +38,12 @@ export const actions: Actions = {
 			headers: request.headers
 		});
 
-		if (!session) {
-			return;
+		if (!session || !requestId) {
+			return fail(400, { message: 'Missing requestId' });
 		}
 
 		await db
 			.delete(friendRequest)
-			.where(and(eq(friendRequest.id, requestId), eq(friendRequest.receiverId, session.user.id)));
+			.where(and(eq(friendRequest.id, Number(requestId)), eq(friendRequest.receiverId, session.user.id)));
 	}
 };

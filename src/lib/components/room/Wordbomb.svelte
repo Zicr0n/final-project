@@ -88,7 +88,7 @@
 	}
 
 	function OnWordWrong(currentPlayerId: string) {
-		// put your wrong-word UI logic here
+		// wrong dude
 		console.log('wrong word from player:', currentPlayerId);
 	}
 

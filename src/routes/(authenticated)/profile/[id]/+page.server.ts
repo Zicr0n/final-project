@@ -14,7 +14,7 @@ export const load: PageServerLoad = async (event) => {
 	});
 
 	if (!session?.user) {
-		return fail(404, { error: 'Unexpected Error' });
+		throw error(401, 'Unauthorized');
 	}
 
 	const profileUser = await db.query.user.findFirst({
@@ -44,7 +44,11 @@ export const actions: Actions = {
 			headers: request.headers
 		});
 
-		const senderId = sender?.user.id;
+		if (!sender?.user?.id) {
+			return fail(401, { error: 'Unauthorized' });
+		}
+
+		const senderId = sender.user.id;
 
 		const existing = await db
 			.select()

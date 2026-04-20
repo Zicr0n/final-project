@@ -49,6 +49,6 @@ export const load: PageServerLoad = async ({ params, parent, url }) => {
 		room: found,
 		user,
 		char,
-		password: url.searchParams.get('password') ?? ''
+		password: ''
 	};
 };

@@ -18,6 +18,7 @@ type RoomPlayer = {
 	id: string;
 	username: string;
 	joined: boolean;
+	lives: number;
 	imageUrl: string;
 };
 
@@ -30,6 +31,7 @@ const rooms: Record<
 		roomType: string;
 		gameState: any;
 		owner: RoomPlayer | null;
+		prompts: Array<string> | null;
 	}
 > = {};
 
@@ -143,7 +145,8 @@ const webSocketServer = {
 			);
 
 			const roomSockets = roomUserSockets.get(roomId);
-			if (roomSockets?.get(userId) === socket.id) {
+
+			if (roomSockets && roomSockets.get(userId) === socket.id) {
 				roomSockets.delete(userId);
 				if (roomSockets.size === 0) {
 					roomUserSockets.delete(roomId);
@@ -169,8 +172,10 @@ const webSocketServer = {
 			emitRoomState(roomId);
 		};
 
-		io.on('connection', (socket) => {
-			const { userId, username, imageUrl } = socket.handshake.auth ?? {};
+		io.on('connection', async (socket) => {
+			const userId = socket.handshake.auth?.userId;
+			const username = socket.handshake.auth?.username;
+			const imageUrl = socket.handshake.auth?.imageUrl ?? '';
 
 			if (!userId || !username) {
 				socket.disconnect();
@@ -179,7 +184,7 @@ const webSocketServer = {
 
 			socket.data.userId = String(userId);
 			socket.data.username = String(username);
-			socket.data.imageUrl = imageUrl ? String(imageUrl) : '';
+			socket.data.imageUrl = String(imageUrl);
 
 			socket.on('join_room', async ({ roomId, password }) => {
 				const currentRoomId = Number(socket.data.roomId);
@@ -213,7 +218,8 @@ const webSocketServer = {
 						started: false,
 						roomType: foundRoom.type,
 						gameState: mode?.initMode() ?? null,
-						owner: null
+						owner: null,
+						prompts: null
 					};
 				}
 
@@ -264,6 +270,7 @@ const webSocketServer = {
 					id: socket.data.userId,
 					username: socket.data.username,
 					joined: false,
+					lives: 0,
 					imageUrl: socket.data.imageUrl
 				};
 

@@ -4,7 +4,7 @@
 
 	import { FileUpload } from '@skeletonlabs/skeleton-svelte';
 
-	let sessions = $state([]);
+	let sessions = $state<Array<{ id: string; createdAt: Date; updatedAt: Date; userId: string; expiresAt: Date; token: string; ipAddress?: string | null; userAgent?: string | null }>>([]);
 	let { data, form } = $props();
 
 	let currentPassword = $state('');
@@ -15,16 +15,18 @@
 
 	onMount(async () => {
 		const fetch = await authClient.listSessions();
-		sessions = fetch.data;
+		if (fetch.data) {
+			sessions = fetch.data;
+		}
 	});
 
-	async function RemoveSession(token) {
+	async function RemoveSession(token: string) {
 		await authClient.revokeSession({
 			token: token
 		});
 	}
 
-	async function ChangePassword(currentPassword: String, newPassword: String) {
+	async function ChangePassword(currentPassword: string, newPassword: string) {
 		const { error } = await authClient.changePassword({
 			newPassword: newPassword, // required
 			currentPassword: currentPassword, // required
@@ -32,7 +34,7 @@
 		});
 	}
 
-	function handleSubmit(event) {
+	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		errorMessage = '';
 
@@ -53,12 +55,12 @@
 		}
 
 		// If valid → submit form
-		event.target.submit();
+		(event.target as HTMLFormElement).submit();
 	}
 	let previewProfilePicture = $state("");
 
-	function handleFileSelect(event) {
-		const file = event.target.files[0];
+	function handleFileSelect(event: Event) {
+		const file = (event.target as HTMLInputElement).files?.[0];
 		if (file) {
 			// Hur skapar du en preview URL?
 			const url = URL.createObjectURL(file);
@@ -78,9 +80,7 @@
 
 <div>
 <form method="POST" action="?/uploadProfile" enctype="multipart/form-data">
-	{#if form?.fileSize}<div>file size</div>{/if}
-	{#if form?.filetype}<div>file type</div>{/if}
-	{#if form?.error}<div>error</div>{/if}
+	{#if form?.error}<div>{form.error}</div>{/if}
 
 	<FileUpload class="w-fit" maxFiles={1} maxFileSize={5 * 1024 * 1024} allowDrop accept={['image/*']}>
 		<FileUpload.Trigger>Browse Images</FileUpload.Trigger>

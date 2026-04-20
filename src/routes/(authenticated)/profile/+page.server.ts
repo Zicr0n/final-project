@@ -8,7 +8,7 @@ export const load: PageServerLoad = async (event) => {
 	});
 
 	if (!session) {
-		throw redirect(307, '/login');
+		throw redirect(307, '/');
 	}
 
 	throw redirect(307, `/profile/${session.user.id}`);

@@ -33,11 +33,23 @@ function GenerateGamePrompts(minAmount : number=500): string[] {
 	return promptsAdjusted.map((item: { prompt: string; count: number }) => item.prompt);
 
 }
-async function isValidWord(word: string, prompt : string) {
-	const res = await fetch(`https://api.datamuse.com/words?sp=${word}&max=1`);
-	const data = await res.json();
+async function isValidWord(word: string, prompt: string) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 2000);
 
-	return data.length > 0 && data[0].word === word.toLowerCase() && word.includes(prompt) && word.length > prompt.length;
+	try {
+		const res = await fetch(
+			`https://api.datamuse.com/words?sp=${word}&max=1`,
+			{ signal: controller.signal }
+		);
+
+		const data = await res.json();
+		return data.length > 0 && word.includes(prompt);
+	} catch {
+		return false;
+	} finally {
+		clearTimeout(timeout);
+	}
 }
 
 function GeneratePrompt(prompts : Array<string>){

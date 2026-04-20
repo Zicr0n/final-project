@@ -10,6 +10,10 @@ import argon2 from 'argon2';
 import 'dotenv/config';
 import { gameModes } from './game-modes.ts';
 
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import handler from '../build/handler.js';
+
 const { Pool } = pg;
 
 const room = pgTable('room', {

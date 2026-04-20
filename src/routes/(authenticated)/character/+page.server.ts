@@ -35,7 +35,7 @@ export const actions = {
 		let hatId = Number(formData.get('hatId'));
 		let eyesId = Number(formData.get('eyesId'));
 		let shirtId = Number(formData.get('shirtId'));
-		const bodyColor = formData.get('bodyColor') ?? 0;
+		const bodyColor = String(formData.get('bodyColor') ?? '');
 
 		if (!user) {
 			throw fail(404, { message: 'User not found' });
