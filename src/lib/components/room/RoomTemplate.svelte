@@ -53,7 +53,6 @@
 	// 	};
 	// }
 
-
 	onMount(() => {
 		connectionStatus = 'connecting';
 
@@ -103,9 +102,9 @@
 	});
 
 	function AttemptJoinGame() {
-		console.log("attempted join client")
+		console.log('attempted join client');
 		socket?.emit('join_game');
-		console.log("emit socket")
+		console.log('emit socket');
 	}
 
 	onDestroy(() => {
@@ -166,7 +165,7 @@
 					<Tabs.Trigger class="h-12 flex-1 rounded-none" value="leave"><DoorOpen /></Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="chat" class="h-full">
-					<Chat/>
+					<Chat />
 				</Tabs.Content>
 				<Tabs.Content value="players" class="h-full">
 					<PlayerList {players} ownerId={owner?.id} />

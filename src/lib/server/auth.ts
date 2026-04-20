@@ -5,9 +5,23 @@ import { env } from '$env/dynamic/private';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 import { usernameClient } from 'better-auth/client/plugins';
-import { username } from 'better-auth/plugins';
+import { username, anonymous } from 'better-auth/plugins';
 
 export const auth = betterAuth({
+	user: {
+		additionalFields : {
+			username : {
+				type : 'string',
+				required : false,
+				defaultValue : ''
+			},
+			displayUsername: {
+                type: 'string',
+                required: false,
+                defaultValue: ''
+            }
+		}
+	},
 	baseURL: env.ORIGIN,
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'pg' }),
@@ -22,5 +36,11 @@ export const auth = betterAuth({
 		updateAge: 60 * 60 * 24,
 		freshAge: 60 * 5
 	},
-	plugins: [username(), usernameClient(), sveltekitCookies(getRequestEvent)] // make sure this is the last plugin in the array
+	plugins: [
+		anonymous({
+            generateName: () => `guest_${Math.random().toString(36).slice(2, 8)}`
+        }),
+		username(), 
+		usernameClient(), 
+		sveltekitCookies(getRequestEvent)] // make sure this is the last plugin in the array
 });

@@ -39,10 +39,7 @@ export const load: PageServerLoad = async ({ request, params }) => {
 		.where(
 			and(
 				eq(friendRequest.status, 'accepted'),
-				or(
-					eq(friendRequest.receiverId, userId),
-					eq(friendRequest.senderId, userId)
-				)
+				or(eq(friendRequest.receiverId, userId), eq(friendRequest.senderId, userId))
 			)
 		);
 

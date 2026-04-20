@@ -11,10 +11,7 @@
 			class="grid w-full grid-cols-[1fr_3fr] p-2 transition-all hover:preset-filled-surface-700-300"
 		>
 			<Avatar class="size-20">
-				<Avatar.Image
-					src={player.imageUrl}
-					alt="avatar"
-				/>
+				<Avatar.Image src={player.imageUrl} alt="avatar" />
 				<Avatar.Fallback>{player.username.substring(0, 2)}</Avatar.Fallback>
 			</Avatar>
 			<div class="flex">

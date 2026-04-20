@@ -49,8 +49,7 @@ const io = new Server(server, {
 	connectionStateRecovery: {}
 });
 
-const getPlayerCount = (roomId) =>
-	rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0;
+const getPlayerCount = (roomId) => (rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0);
 
 const getMode = (roomId) => {
 	const currentRoom = rooms[roomId];

@@ -11,7 +11,7 @@
 	let wordSubmissions = $state<{ userId: string; username: string; word: string }[]>([]);
 	let userInput = $state('');
 	let wordInput: HTMLInputElement | null = $state(null);
-	let promptToWrite = $state("")
+	let promptToWrite = $state('');
 
 	let cleanup: (() => void) | null = null;
 
@@ -22,7 +22,7 @@
 		currentPlayerId: string;
 		explodesAt: number;
 		submissions: { userId: string; username: string; word: string }[];
-		currentPrompt : string
+		currentPrompt: string;
 	};
 
 	type RoomStateEvent = {
@@ -46,7 +46,7 @@
 			currentStatus = status;
 			holderId = currentPlayerId;
 			wordSubmissions = submissions;
-			promptToWrite = currentPrompt
+			promptToWrite = currentPrompt;
 		};
 
 		const onRoomState = ({ players: roomPlayers }: RoomStateEvent) => {

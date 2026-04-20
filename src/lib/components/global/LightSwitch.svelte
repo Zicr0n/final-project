@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Switch } from '@skeletonlabs/skeleton-svelte';
+	import { MoonIcon, SunIcon } from '@lucide/svelte';
 
 	let checked = $state(false);
 
@@ -15,7 +16,7 @@
 		checked = event.checked;
 	};
 
-    let { classProp = $bindable() } =  $props()
+	let { classProp = $bindable() } = $props();
 </script>
 
 <svelte:head>
@@ -26,7 +27,17 @@
 
 <Switch {checked} {onCheckedChange} class={classProp}>
 	<Switch.Control>
-		<Switch.Thumb />
+		<Switch.Thumb>
+			<Switch.Context>
+				{#snippet children(switch_)}
+					{#if !switch_().checked}
+						<SunIcon class="size-3" />
+					{:else}
+						<MoonIcon class="size-3" />
+					{/if}
+				{/snippet}
+			</Switch.Context>
+		</Switch.Thumb>
 	</Switch.Control>
 	<Switch.HiddenInput />
 </Switch>

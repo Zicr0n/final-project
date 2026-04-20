@@ -44,6 +44,8 @@ export const actions: Actions = {
 
 		await db
 			.delete(friendRequest)
-			.where(and(eq(friendRequest.id, Number(requestId)), eq(friendRequest.receiverId, session.user.id)));
+			.where(
+				and(eq(friendRequest.id, Number(requestId)), eq(friendRequest.receiverId, session.user.id))
+			);
 	}
 };

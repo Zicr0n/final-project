@@ -129,15 +129,12 @@ export const actions: Actions = {
 				Key: key,
 				Body: body,
 				ContentType: fileType
-		})
-);
+			})
+		);
 
 		const imageUrl = `${PUBLIC_R2_BASE_URL}/${key}`;
 
-		await db
-			.update(user)
-			.set({ image : imageUrl })
-			.where(eq(user.id, thisUser.id));
+		await db.update(user).set({ image: imageUrl }).where(eq(user.id, thisUser.id));
 
 		return { success: true, imageUrl };
 	}

@@ -4,13 +4,14 @@ import { auth } from '$lib/server/auth';
 import { APIError } from 'better-auth/api';
 import { db } from '$lib/server/db';
 import { character } from '$lib/server/db/schema';
+import { authClient } from '$lib/client';
 
 export const actions: Actions = {
 	login: async (event) => {
 		const formData = await event.request.formData();
 		const username = formData.get('username')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
-		console.log("login")
+		console.log('login');
 
 		try {
 			await auth.api.signInUsername({
@@ -21,7 +22,6 @@ export const actions: Actions = {
 				}
 			});
 		} catch (error) {
-
 			if (error instanceof APIError) {
 				return fail(400, { message: error.message || 'Signin failed' });
 			}
@@ -37,7 +37,7 @@ export const actions: Actions = {
 		const email = formData.get('email')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 		const username = formData.get('username')?.toString() ?? '';
-		console.log("register")
+		console.log('register');
 
 		try {
 			const response = await auth.api.isUsernameAvailable({
@@ -54,7 +54,7 @@ export const actions: Actions = {
 				body: {
 					email,
 					password,
-					name : "",
+					name: '',
 					username,
 					callbackURL: '/auth/verification-success'
 				}
@@ -81,13 +81,39 @@ export const actions: Actions = {
 				});
 			}
 		} catch (error) {
-
 			if (error instanceof APIError) {
 				return fail(400, { message: error.message || 'Registration failed' });
 			}
 
 			return fail(500, { message: 'Unexpected error' });
 		}
+
+		throw redirect(302, '/rooms');
+	},
+
+	anonymousSignIn: async (event) => {
+		const formData = await event.request.formData();
+		const username = formData.get('username')?.toString() ?? '';
+
+		const session = await auth.api.getSession({ headers: event.request.headers });
+
+		if (!session?.user) {
+			return fail(401, { message: 'Not signed in' });
+		}
+
+		if (!username || username.length < 2) {
+			return fail(400, { message: 'Username too short' });
+		}
+
+		const available = await auth.api.isUsernameAvailable({ body: { username } });
+		if (!available?.available) {
+			return fail(400, { message: 'Username taken' });
+		}
+
+		await auth.api.updateUser({
+			body: { username, displayUsername: username, name: username },
+			headers: event.request.headers
+		});
 
 		throw redirect(302, '/rooms');
 	}
