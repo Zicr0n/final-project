@@ -4,7 +4,7 @@
 	import { Collapsible, Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { onMount } from 'svelte';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
     let sessions = $state<
 		Array<{
@@ -139,7 +139,7 @@
             <span class="badge preset-filled-surface-100-900">{formatEmail(data.user.email)}</span>
             <Dialog>
                 <Dialog.Trigger class="btn btn-sm
-                preset-filled-error-400-600 uppercase disabled" disabled>change
+                preset-filled-primary-400-600 uppercase disabled" disabled>change
             </Dialog.Trigger >
                 <Portal>
                     <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
@@ -195,7 +195,7 @@
 		<div>
             <Dialog>
                 <Dialog.Trigger class="btn btn-sm
-                preset-filled-error-400-600 uppercase">change
+                preset-filled-primary-400-600 uppercase">change
             </Dialog.Trigger>
                 <Portal>
                     <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />

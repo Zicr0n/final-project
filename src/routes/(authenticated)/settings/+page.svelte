@@ -67,7 +67,7 @@
 				</form>
 			{:else}
 				<span class="badge preset-filled-surface-100-900">{data.user.username}</span>
-				<button class="btn rounded active:scale-95 preset-filled-primary-400-600" onclick={()=> editUsername = true} >Edit</button>
+				<button class="btn rounded btn-sm active:scale-95 preset-filled-primary-400-600" onclick={()=> editUsername = true} >Edit</button>
 			{/if}
 		</div>
 	</div>
