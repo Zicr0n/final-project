@@ -50,7 +50,7 @@
 						projectname
 					</h2>
 					<h2
-						class="w-fit bg-linear-to-br from-primary-600-400 to-primary-300 bg-clip-text text-5xl leading-none font-black tracking-tight text-transparent
+						class="w-fit bg-linear-to-b from-primary-600-400 to-primary-300 bg-clip-text text-5xl leading-none font-black tracking-tight text-transparent
 					uppercase transition-all duration-300 hover:translate-x-2 sm:text-6xl
 					"
 					>

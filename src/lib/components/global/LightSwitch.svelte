@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Switch } from '@skeletonlabs/skeleton-svelte';
-	import { MoonIcon, SunIcon } from '@lucide/svelte';
+	import { MoonStar, SunIcon } from '@lucide/svelte';
 
 	let checked = $state(false);
 
@@ -33,7 +33,7 @@
 					{#if !switch_().checked}
 						<SunIcon class="size-3" />
 					{:else}
-						<MoonIcon class="size-3" />
+						<MoonStar class="size-3" />
 					{/if}
 				{/snippet}
 			</Switch.Context>

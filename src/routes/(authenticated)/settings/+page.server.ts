@@ -16,41 +16,11 @@ export const load: PageServerLoad = async ({ parent }) => {
 
 export const actions: Actions = {
 	signOut: async (event) => {
+		console.log("sign out")
 		await auth.api.signOut({
 			headers: event.request.headers
 		});
 		return redirect(302, '/');
-	},
-
-	changePassword: async ({ request }) => {
-		const formData = await request.formData();
-		const newPassword = formData.get('newPassword');
-		const currentPassword = formData.get('currentPassword') ?? '';
-
-		if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
-			throw new Error('Invalid form data');
-		}
-
-		if (newPassword === currentPassword) {
-			return fail(400, { error: 'New Password Cannot Be Current Password' });
-		}
-
-		try {
-			await auth.api.changePassword({
-				body: {
-					newPassword,
-					currentPassword,
-					revokeOtherSessions: true
-				},
-				headers: request.headers
-			});
-
-			return redirect(303, '/settings');
-		} catch (error: any) {
-			return fail(error.statusCode ?? 400, {
-				error: error?.body?.message ?? 'Failed to change password'
-			});
-		}
 	},
 
 	changeUsername: async ({ request, locals }) => {

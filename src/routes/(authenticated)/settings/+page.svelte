@@ -1,78 +1,18 @@
 <script lang="ts">
-	import { authClient } from '$lib/client';
-	import { onMount } from 'svelte';
 
 	import { Avatar, Dialog, FileUpload, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { Check, XIcon } from '@lucide/svelte';
 
-	let sessions = $state<
-		Array<{
-			id: string;
-			createdAt: Date;
-			updatedAt: Date;
-			userId: string;
-			expiresAt: Date;
-			token: string;
-			ipAddress?: string | null;
-			userAgent?: string | null;
-		}>
-	>([]);
+	
 	let { data, form } = $props();
 
-	let currentPassword = $state('');
-	let newPassword = $state('');
-	let newPasswordConfirm = $state('');
-	let errorMessage = $state('');
+
 	let newUsername = $state('');
 	let editUsername = $state(false)
 
 	const animation =
 		'transition transition-discrete opacity-0 translate-y-[100px] starting:data-[state=open]:opacity-0 starting:data-[state=open]:translate-y-[100px] data-[state=open]:opacity-100 data-[state=open]:translate-y-0';
 
-	onMount(async () => {
-		const fetch = await authClient.listSessions();
-		if (fetch.data) {
-			sessions = fetch.data;
-		}
-	});
-
-	async function RemoveSession(token: string) {
-		await authClient.revokeSession({
-			token: token
-		});
-	}
-
-	async function ChangePassword(currentPassword: string, newPassword: string) {
-		const { error } = await authClient.changePassword({
-			newPassword: newPassword, // required
-			currentPassword: currentPassword, // required
-			revokeOtherSessions: true
-		});
-	}
-
-	function handleSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		errorMessage = '';
-
-		// Basic checks
-		if (!currentPassword || !newPassword || !newPasswordConfirm) {
-			errorMessage = 'All fields are required.';
-			return;
-		}
-
-		if (newPassword.length < 8) {
-			errorMessage = 'New password must be at least 8 characters.';
-			return;
-		}
-
-		if (newPassword !== newPasswordConfirm) {
-			errorMessage = 'New passwords do not match.';
-			return;
-		}
-
-		// If valid → submit form
-		(event.target as HTMLFormElement).submit();
-	}
 	let previewProfilePicture = $state('');
 
 	function handleFileSelect(event: Event) {
@@ -191,8 +131,13 @@
 						</Dialog.Description>
 						<footer class="flex justify-end gap-2">
 							<Dialog.CloseTrigger class="btn preset-tonal">Cancel</Dialog.CloseTrigger>
-							<form method="POST" action="/settings?/signOut">
-								<Dialog.CloseTrigger class="btn preset-filled-error-500">Confirm</Dialog.CloseTrigger>
+							<form method="POST" action="?/signOut"
+							>
+								<Dialog.CloseTrigger class="btn
+								preset-filled-error-500"
+								type="button">
+									<button>Submit</button>
+								</Dialog.CloseTrigger>
 							</form>
 						</footer>
 					</Dialog.Content>
@@ -201,48 +146,3 @@
 		</Dialog>
 	</div>
 </section>
-
-<div>
-	<form method="POST" action="?/changePassword" onsubmit={handleSubmit}>
-		<label for="currentPassword">Current Password</label>
-		<input minlength="8" bind:value={currentPassword} name="currentPassword" type="password" />
-
-		<label for="newPassword">New Password</label>
-		<input minlength="8" bind:value={newPassword} name="newPassword" type="password" />
-
-		<label for="newPasswordConfirm">New Password Confirm</label>
-		<input
-			minlength="8"
-			bind:value={newPasswordConfirm}
-			name="newPasswordConfirm"
-			type="password"
-		/>
-
-		<button type="submit">Confirm Password Change</button>
-		{#if errorMessage}
-			<p class="text-red-500">{errorMessage}</p>
-		{/if}
-		{#if form?.error}
-			<p>ERROR : {form?.error}</p>
-		{/if}
-	</form>
-
-	<ul class="flex flex-col gap-4">
-		<ul>
-			{#each sessions as session}
-				<p>Expires at : {session.expiresAt}</p>
-				<p>Created at : {session.createdAt}</p>
-				<p>Updated at : {session.updatedAt}</p>
-				<p>IP Address : {session.ipAddress}</p>
-				<form>
-					<button class="bg-cyan-500" onclick={() => RemoveSession(session.token)}
-						>Remove Session</button
-					>
-				</form>
-			{/each}
-		</ul>
-	</ul>
-</div>
-
-
-<!-- Sign out dialog -->
