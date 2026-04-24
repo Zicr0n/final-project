@@ -8,9 +8,7 @@
       { label: 'Security', icon: Lock, href: '/settings/security' },
     ]},
     { section: 'Game', items: [
-      { label: 'Appearance', icon: Paintbrush, href: '/settings/appearance' },
-      { label: 'Audio', icon: Volume2, href: '/settings/audio' },
-      { label: 'Stats', icon: BarChart2, href: '/settings/stats' },
+      { label: 'Appearance', icon: Paintbrush, href: '/settings/appearance' }
     ]}
   ];
 </script>
