@@ -40,7 +40,7 @@
           {/each}
         </select>
         {#if selectedTheme !== chosenTheme && selectedTheme !== null }
-            <button class="btn btn-sm preset-filled-primary-300-700" type="submit">Confirm Theme</button>
+            <button class="btn btn-sm preset-filled-primadry-300-700" type="submit">Confirm Theme</button>
         {/if}
     </form>
 </div>

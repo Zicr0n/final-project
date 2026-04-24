@@ -29,8 +29,20 @@ export const load: PageServerLoad = async (event) => {
 
 	const friendStatus = await getFriendStatus(session?.user.id, profileUser.id);
 
+	const friendCount = await db.query.friendRequest.findMany({
+		where: and(
+			or(
+				eq(friendRequest.receiverId, profileUser.id),
+				eq(friendRequest.senderId, profileUser.id)
+			),
+			eq(friendRequest.status, 'accepted')
+		)
+	});
+
+
 	return {
 		friendStatus,
+		friends : friendCount.length,
 		profileUser,
 		isOwner
 	};
@@ -67,5 +79,17 @@ export const actions: Actions = {
 			senderId: senderId,
 			receiverId: receiverId
 		});
+	},
+	updateDescription: async ({ request, params }) => {
+		const formData = await request.formData();
+		const description = formData.get("description") as string | null;
+
+		const session = await auth.api.getSession({
+			headers: request.headers
+		});
+
+		if(!session) return;
+
+		await db.update(user).set({ description: description }).where(eq(user.id, session.user.id));
 	}
 };
