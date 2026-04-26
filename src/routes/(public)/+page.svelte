@@ -33,7 +33,7 @@
 	}
 </script>
 
-<main class=" relative min-h-screen overflow-x-hidden text-surface-900-100 overflow-hidden">
+<main class=" relative min-h-screen overflow-hidden overflow-x-hidden text-surface-900-100">
 	<div class="absolute bottom-0 left-0 w-full">
 		<GridBackground class="w-full" />
 	</div>

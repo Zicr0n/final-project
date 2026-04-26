@@ -1,4 +1,7 @@
-export function fadeIn(node: HTMLElement, { delay = 0, duration = 600 }: { delay?: number; duration?: number } = {}) {
+export function fadeIn(
+	node: HTMLElement,
+	{ delay = 0, duration = 600 }: { delay?: number; duration?: number } = {}
+) {
 	node.style.opacity = '0';
 	node.style.transform = 'translateY(24px)';
 	node.style.transition = `opacity ${duration}ms ease ${delay}ms, transform ${duration}ms ease ${delay}ms`;

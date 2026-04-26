@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import WordBombCanvas from './utilities/WordBombCanvas.svelte';
+	import PixiCanvasWordBomb from './utilities/PixiCanvasWordBomb.svelte';
+	import PregamePixiCanvas from './utilities/PregamePixiCanvas.svelte';
 
 	let { data, socket } = $props();
 
@@ -16,6 +17,7 @@
 	let cleanup: (() => void) | null = null;
 
 	let isMyTurn = $derived(currentStatus === 'playing' && holderId === data.user.id);
+	let statusText = $state("UNKNOWN")
 
 	type GameState = {
 		status: string;
@@ -33,6 +35,17 @@
 		if (isMyTurn) {
 			userInput = '';
 			wordInput?.focus();
+		}
+		joinedPlayers;
+		currentStatus;
+
+		if(currentStatus == "waiting"){
+			if (joinedPlayers.length < 2){
+				statusText = `Awaiting ${2 - joinedPlayers.length} ${joinedPlayers.length >= 1 ? "player" : "players"}`
+			// TODO - Add settings editing
+			}else if (joinedPlayers.length > 1){
+				statusText = `Intermission...`
+			}
 		}
 	});
 
@@ -102,16 +115,27 @@
 </script>
 
 <main class="relative h-full">
-	{currentStatus}
-
 	{#if currentStatus === 'waiting'}
-		<div class="absolute left-[50%] my-6 flex w-full translate-x-[-50%] justify-center">
-			<h1 class="h1">Welcome to WORD BOMB!</h1>
+		<div class="h-full w-full grid grid-rows-[auto_1fr]">
+			<!-- Game Status-->
+			<header class="w-full p-4">
+				<h6 class="h6 text-center font-black">{statusText}</h6>
+			</header>
+
+			<section class="w-full h-full text-center flex justify-center items-center">
+				<PregamePixiCanvas players={joinedPlayers}/>
+			</section>
 		</div>
 	{:else if currentStatus === 'playing'}
-		<h1 class="h1">CURRENT PROMPT : {promptToWrite}</h1>
 		<div class="flex h-full w-full flex-col">
-			<WordBombCanvas />
+			<!-- Information-->
+			<header class="w-full">
+				<h7 class="h7">Difficulty HARD</h7>
+			</header>
+			<!-- Canvas -->
+			<div class="w-full h-full text-center flex justify-center items-center">
+				<PixiCanvasWordBomb players={joinedPlayers} holderId={holderId} prompt={promptToWrite}/>
+			</div>
 
 			<div class="flex h-16 w-full justify-center preset-tonal-surface">
 				<form onsubmit={submitWord} class="flex items-center">

@@ -6,7 +6,7 @@
 </script>
 
 <main class="min-h-screen">
-	<header class="sticky border-b border-white/5 bg-surface-900/80 backdrop-blur-md top-0 z-50">
+	<header class="sticky top-0 z-50 border-b border-white/5 bg-surface-900/80 backdrop-blur-md">
 		<div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
 			<div class="flex items-center gap-3">
 				<div

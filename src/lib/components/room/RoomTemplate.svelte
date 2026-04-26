@@ -16,6 +16,8 @@
 		PanelRightOpen
 	} from '@lucide/svelte';
 
+	import { pendingRoomPassword } from '$lib/stores/roomPassword';
+
 	let { data } = $props();
 
 	// svelte-ignore state_referenced_locally
@@ -67,10 +69,9 @@
 		socket.on('connect', () => {
 			connectionStatus = 'connected';
 
-			socket?.emit('join_room', {
-				roomId,
-				password
-			});
+			const password = pendingRoomPassword.load();
+			pendingRoomPassword.clear();
+			socket?.emit('join_room', { roomId, password });
 		});
 
 		socket.on('disconnect', () => {
@@ -99,6 +100,14 @@
 		socket.on('room_closed', () => {
 			goto('/rooms');
 		});
+
+		const warn = (e: BeforeUnloadEvent) => {
+			e.preventDefault();
+		};
+
+		window.addEventListener('beforeunload', warn);
+		return () => window.removeEventListener('beforeunload', warn);
+
 	});
 
 	function AttemptJoinGame() {
@@ -116,7 +125,7 @@
 <main
 	class="grid {showSidePanel === true
 		? 'grid-cols-[1fr_400px]'
-		: 'grid-cols-[1fr]'} relative h-full min-h-0 overflow-hidden bg-surface-900"
+		: 'grid-cols-[1fr]'} relative h-full min-h-0 z-0"
 >
 	<!-- Game -->
 	<div class="flex h-full w-full flex-col justify-end">

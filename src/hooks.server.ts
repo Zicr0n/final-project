@@ -15,12 +15,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 	return svelteKitHandler({
 		event,
-		resolve: (event) => resolve(event, {
-			transformPageChunk: ({ html }) =>
-				html
-					.replace('data-theme="crimson"', `data-theme="${theme}"`)
-					.replace('data-mode="dark"', `data-mode="${mode}"`)
-		}),
+		resolve: (event) =>
+			resolve(event, {
+				transformPageChunk: ({ html }) =>
+					html
+						.replace('data-theme="crimson"', `data-theme="${theme}"`)
+						.replace('data-mode="dark"', `data-mode="${mode}"`)
+			}),
 		auth,
 		building
 	});

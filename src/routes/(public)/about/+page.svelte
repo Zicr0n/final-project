@@ -21,7 +21,10 @@
 	</section>
 
 	<section class="my-30 flex justify-center gap-2">
-		<div use:fadeIn={{ delay: 0 }} class="flex flex-col gap-4 card preset-tonal-surface p-4 card-hover bg-surface-500/10">
+		<div
+			use:fadeIn={{ delay: 0 }}
+			class="flex flex-col gap-4 card preset-tonal-surface bg-surface-500/10 p-4 card-hover"
+		>
 			<div class="flex items-center gap-4">
 				<Bomb size="32" class="rounded bg-warning-500 p-1 text-surface-950" />
 				<h5 class="h5 font-black uppercase">Word bomb</h5>
@@ -32,7 +35,10 @@
 				wins.
 			</p>
 		</div>
-		<div use:fadeIn={{ delay: 150 }} class="flex flex-col gap-4 card preset-tonal-surface p-4 card-hover bg-surface-500/10">
+		<div
+			use:fadeIn={{ delay: 150 }}
+			class="flex flex-col gap-4 card preset-tonal-surface bg-surface-500/10 p-4 card-hover"
+		>
 			<div class="flex gap-4">
 				<CupSoda size="32" class="rounded bg-tertiary-500 p-1 text-surface-950" />
 				<h5 class="h5 font-black uppercase">Pop Quiz</h5>
@@ -43,7 +49,10 @@
 				amount of points, and whoever racks up the most points across all rounds wins.
 			</p>
 		</div>
-		<div use:fadeIn={{ delay: 300 }} class="flex flex-col gap-4 card preset-tonal-surface p-4 card-hover bg-surface-500/10">
+		<div
+			use:fadeIn={{ delay: 300 }}
+			class="flex flex-col gap-4 card preset-tonal-surface bg-surface-500/10 p-4 card-hover"
+		>
 			<div class="flex gap-4">
 				<Pencil size="32" class="rounded bg-secondary-500 p-1 text-surface-950" />
 				<h5 class="h5 font-black uppercase">Pictionary</h5>
@@ -76,7 +85,9 @@
 	<div class="mx-auto max-w-7xl px-6 py-12">
 		<div class="flex flex-col items-center gap-6">
 			<div class="flex items-center gap-3">
-				<div class="grid h-9 w-9 place-items-center rounded-xl bg-primary-500/15 text-primary-300 ring-1 ring-primary-400/30">
+				<div
+					class="grid h-9 w-9 place-items-center rounded-xl bg-primary-500/15 text-primary-300 ring-1 ring-primary-400/30"
+				>
 					<Gamepad2 size={16} />
 				</div>
 				<span class="text-sm font-semibold tracking-widest uppercase opacity-90">

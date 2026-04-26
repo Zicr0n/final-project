@@ -5,6 +5,7 @@ import { db } from '$lib/server/db';
 import { room } from '$lib/server/db/schema';
 import { desc } from 'drizzle-orm';
 import argon2 from 'argon2';
+import { auth } from '$lib/server/auth';
 
 export const GET: RequestHandler = async () => {
 	const rooms = await db
@@ -21,42 +22,38 @@ export const GET: RequestHandler = async () => {
 	return json(rooms);
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!locals.user) {
-		return json({ error: 'Unauthorized' }, { status: 401 });
-	}
+export const POST: RequestHandler = async ({ request, cookies }) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) return json({ error: 'Unauthorized' }, { status: 401 });
 
-	const body = await request.json();
-	const name = typeof body.name === 'string' ? body.name.trim() : '';
-	const maxPlayers = Number(body.maxPlayers);
-	const password = typeof body.password === 'string' ? body.password.trim() : '';
-	const ownerId = locals.user?.id;
+    const { name, maxPlayers, password } = await request.json();
 
-	if (!name) {
-		return json({ error: 'Room name cannot be empty.' }, { status: 400 });
-	}
+    if (!name?.trim()) return json({ error: 'Room name required' }, { status: 400 });
+    if (maxPlayers < 1 || maxPlayers > 50) return json({ error: 'Max room size is 50' }, { status: 400 });
 
-	if (!Number.isInteger(maxPlayers) || maxPlayers < 1 || maxPlayers > 50) {
-		return json({ error: 'Max players must be between 1 and 50.' }, { status: 400 });
-	}
+    const isPrivate = !!password?.trim();
+    const passwordHash = isPrivate ? await argon2.hash(password.trim()) : null;
 
-	if (password.length > 100) {
-		return json({ error: 'Password is too long.' }, { status: 400 });
-	}
+    const [created] = await db
+        .insert(room)
+        .values({
+            name: name.trim(),
+            maxPlayers,
+            isPrivate,
+            passwordHash,
+            ownerId: session.user.id,
+            type: 'bomb'
+        })
+        .returning({ id: room.id });
 
-	const isPrivate = password.length > 0;
-	const passwordHash = isPrivate ? await argon2.hash(password) : null;
+    if (isPrivate) {
+        cookies.set(`room_access_${created.id}`, `granted_${created.id}`, {
+            path: '/',
+            httpOnly: true,
+            maxAge: 60 * 60,
+            sameSite: 'strict'
+        });
+    }
 
-	const [created] = await db
-		.insert(room)
-		.values({
-			name,
-			maxPlayers,
-			isPrivate,
-			passwordHash,
-			ownerId
-		})
-		.returning({ roomId: room.id });
-
-	return json({ roomId: created.roomId }, { status: 201 });
+    return json({ roomId: created.id });
 };

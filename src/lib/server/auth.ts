@@ -9,17 +9,17 @@ import { username, anonymous } from 'better-auth/plugins';
 
 export const auth = betterAuth({
 	user: {
-		additionalFields : {
-			username : {
-				type : 'string',
-				required : false,
-				defaultValue : ''
+		additionalFields: {
+			username: {
+				type: 'string',
+				required: false,
+				defaultValue: ''
 			},
 			displayUsername: {
-                type: 'string',
-                required: false,
-                defaultValue: ''
-            }
+				type: 'string',
+				required: false,
+				defaultValue: ''
+			}
 		}
 	},
 	baseURL: env.ORIGIN,
@@ -38,9 +38,10 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		anonymous({
-            generateName: () => `guest_${Math.random().toString(36).slice(2, 8)}`
-        }),
-		username(), 
-		usernameClient(), 
-		sveltekitCookies(getRequestEvent)] // make sure this is the last plugin in the array
+			generateName: () => `guest_${Math.random().toString(36).slice(2, 8)}`
+		}),
+		username(),
+		usernameClient(),
+		sveltekitCookies(getRequestEvent)
+	] // make sure this is the last plugin in the array
 });

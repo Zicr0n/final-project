@@ -24,7 +24,7 @@ export const user = pgTable('user', {
 		.notNull(),
 	username: text('username').notNull().default(''),
 	displayUsername: text('display_username').notNull().default(''),
-	isAnonymous: boolean("is_anonymous"),
+	isAnonymous: boolean('is_anonymous')
 });
 
 export const session = pgTable(

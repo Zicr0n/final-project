@@ -109,13 +109,17 @@ export const wordbombGameMode: GameMode = {
 
 		// Dont allow players that arent currently selected to submit
 		if (state.currentPlayerId !== userId) {
+			console.log("Not currently selected")
 			return;
 		}
 
 		const joinedPlayers = Object.values(room.players).filter((p) => p.joined);
 
 		const currentIndex = joinedPlayers.findIndex((p: any) => p.id === userId);
-		if (currentIndex === -1) return;
+		if (currentIndex === -1) {
+			console.log("Not currently in players joined")
+			return;
+		}
 
 		let cleanWord = word.trim();
 
@@ -124,6 +128,8 @@ export const wordbombGameMode: GameMode = {
 
 		// Is word already used?
 		if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null || !wordValid) {
+			console.log("Word already used")
+
 			io.to(String(roomId)).emit('wordbomb_submit_error', room.gameState);
 			return;
 		}

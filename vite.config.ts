@@ -32,6 +32,7 @@ const rooms: Record<
 		gameState: any;
 		owner: RoomPlayer | null;
 		prompts: Array<string> | null;
+		countdown: boolean;
 	}
 > = {};
 
@@ -219,7 +220,8 @@ const webSocketServer = {
 						roomType: foundRoom.type,
 						gameState: mode?.initMode() ?? null,
 						owner: null,
-						prompts: null
+						prompts: null,
+						countdown: false
 					};
 				}
 
@@ -230,6 +232,7 @@ const webSocketServer = {
 					}
 
 					const ok = await argon2.verify(foundRoom.passwordHash, password);
+
 					if (!ok) {
 						socket.emit('room_error', { error: 'Wrong password' });
 						return;
@@ -318,15 +321,33 @@ const webSocketServer = {
 
 				emitRoomState(roomId);
 
-				if (joinedCount > 1) {
-					currentRoom.started = true;
+				if (joinedCount > 1 && !currentRoom.started && !currentRoom.countdown) {
+					let countdown = 2;
+					currentRoom.countdown = true;
 
-					const mode = getMode(roomId);
-					mode?.onGameStart?.({
-						room: currentRoom,
-						roomId,
-						io
-					});
+					io.to(String(roomId)).emit('game_countdown', { countdown });
+
+					const tick = setInterval(() => {
+						const joined = Object.values(currentRoom.players).filter(p => p.joined).length;
+
+						if (joined < 2) {
+							clearInterval(tick);
+							currentRoom.countdown = false;
+							io.to(String(roomId)).emit('game_countdown_cancelled');
+							return;
+						}
+
+						countdown--;
+						io.to(String(roomId)).emit('game_countdown', { countdown });
+
+						if (countdown <= 0) {
+							clearInterval(tick);
+							currentRoom.countdown = false;
+							currentRoom.started = true;
+							const mode = getMode(roomId);
+							mode?.onGameStart?.({ room: currentRoom, roomId, io });
+						}
+					}, 1000);
 				}
 			});
 
@@ -347,8 +368,8 @@ const webSocketServer = {
 						room: currentRoom,
 						io
 					},
-					word,
-					userId
+					userId,
+					word
 				);
 			});
 

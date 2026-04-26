@@ -31,18 +31,14 @@ export const load: PageServerLoad = async (event) => {
 
 	const friendCount = await db.query.friendRequest.findMany({
 		where: and(
-			or(
-				eq(friendRequest.receiverId, profileUser.id),
-				eq(friendRequest.senderId, profileUser.id)
-			),
+			or(eq(friendRequest.receiverId, profileUser.id), eq(friendRequest.senderId, profileUser.id)),
 			eq(friendRequest.status, 'accepted')
 		)
 	});
 
-
 	return {
 		friendStatus,
-		friends : friendCount.length,
+		friends: friendCount.length,
 		profileUser,
 		isOwner
 	};
@@ -82,13 +78,13 @@ export const actions: Actions = {
 	},
 	updateDescription: async ({ request, params }) => {
 		const formData = await request.formData();
-		const description = formData.get("description") as string | null;
+		const description = formData.get('description') as string | null;
 
 		const session = await auth.api.getSession({
 			headers: request.headers
 		});
 
-		if(!session) return;
+		if (!session) return;
 
 		await db.update(user).set({ description: description }).where(eq(user.id, session.user.id));
 	}
