@@ -138,7 +138,6 @@ export const room = pgTable('room', {
 	isPrivate: boolean('is_private').default(false),
 	type: roomTypeEnum('type').notNull().default('bomb'),
 	ownerId: text('owner_id')
-		.notNull()
 		.references(() => user.id, { onDelete: 'cascade' })
 });
 

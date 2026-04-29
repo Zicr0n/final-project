@@ -1,0 +1,1 @@
+ALTER TABLE "room" ALTER COLUMN "owner_id" DROP NOT NULL;
