@@ -19,9 +19,6 @@
 
 
 <main class="my-16 flex h-full flex-col items-center px-30 space-y-2">
-
-	
-
 	<div class=" p-4 max-h-full bg-surface-200-800 rounded min-w-72 space-y-4">
 		<form class="flex lg:flex-row flex-col items-center gap-2 lg:h-12
 		w-full" onsubmit={OnSearch}>
