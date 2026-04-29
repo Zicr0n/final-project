@@ -48,24 +48,24 @@ export const load: PageServerLoad = async ({ params, parent, url, cookies }) => 
 	// 	}
 	// }
 
-	const [char] = await db
-		.select({
-			id: character.id,
-			userId: character.userId,
-			hatId: character.hatId,
-			shirtId: character.shirtId,
-			eyesId: character.eyesId,
-			bodyColor: character.bodyColor
-		})
-		.from(character)
-		.where(eq(character.userId, user.id));
+	// const [char] = await db
+	// 	.select({
+	// 		id: character.id,
+	// 		userId: character.userId,
+	// 		hatId: character.hatId,
+	// 		shirtId: character.shirtId,
+	// 		eyesId: character.eyesId,
+	// 		bodyColor: character.bodyColor
+	// 	})
+	// 	.from(character)
+	// 	.where(eq(character.userId, user.id));
 
-	if (!char) throw error(404, 'Character not found');
+	// if (!char) throw error(404, 'Character not found');
 
 	return {
 		roomId,
 		room: found,
 		user,
-		char
+		// char
 	};
 };

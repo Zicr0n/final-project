@@ -1,5 +1,6 @@
 import type { GameMode } from '../mode-interface.ts';
 import prompts from './prompts.json';
+import { isValidWord } from './words.js'
 
 const TIME_BEFORE_EXPLODE = 10000;
 
@@ -31,22 +32,11 @@ function GenerateGamePrompts(minAmount: number = 500): string[] {
 	let promptsAdjusted = prompts.filter((p) => p.count > minAmount);
 	return promptsAdjusted.map((item: { prompt: string; count: number }) => item.prompt);
 }
-async function isValidWord(word: string, prompt: string) {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 2000);
-
-	try {
-		const res = await fetch(`https://api.datamuse.com/words?sp=${word}&max=1`, {
-			signal: controller.signal
-		});
-
-		const data = await res.json();
-		return data.length > 0 && word.includes(prompt);
-	} catch {
-		return false;
-	} finally {
-		clearTimeout(timeout);
-	}
+async function validateWord(word: string, prompt: string) {
+	console.log("hello world im scanning words")
+	console.log("is correctos?")
+	console.log(isValidWord(word))
+	return isValidWord(word) && word.includes(prompt);
 }
 
 function GeneratePrompt(prompts: Array<string>) {
@@ -124,7 +114,7 @@ export const wordbombGameMode: GameMode = {
 		let cleanWord = word.trim();
 
 		// Check word validity
-		const wordValid = await isValidWord(cleanWord, state.currentPrompt);
+		const wordValid = await validateWord(cleanWord, state.currentPrompt);
 
 		// Is word already used?
 		if (Object.values(state.submissions).find((w) => w.word == cleanWord) != null || !wordValid) {
