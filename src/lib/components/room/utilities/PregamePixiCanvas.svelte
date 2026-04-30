@@ -6,6 +6,7 @@
         id: string;
         username: string;
         imageUrl?: string;
+        word?: string | null;
         lives: number;
         joined: boolean;
     }
@@ -28,8 +29,25 @@
         notJoined: 0x1a1a2e,
     };
 
-    function redraw() {
+    const proxyUrl = (url: string) => `/proxy?url=${encodeURIComponent(url)}`;
+
+    async function redraw() {
         if (!app || !ready) return;
+
+        const textures = await Promise.all(
+            players.map(p =>
+                p.imageUrl
+                    ? new Promise<PIXI.Texture | null>(resolve => {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => resolve(PIXI.Texture.from(img));
+                        img.onerror = () => resolve(null);
+                        img.src = proxyUrl(p.imageUrl!);
+                    })
+                    : Promise.resolve(null)
+            )
+        );
+
         app.stage.removeChildren();
 
         const cx = app.screen.width / 2;
@@ -42,7 +60,6 @@
         ring.stroke({ color: COLORS.ring, width: 1.5 });
         app.stage.addChild(ring);
 
-        // waiting text in center
         const joinedCount = players.filter(p => p.joined).length;
         const centerText = new PIXI.Text({
             text: `${joinedCount}/${players.length}`,
@@ -71,41 +88,51 @@
             group.x = x;
             group.y = y;
 
-            // dashed line from center
             const line = new PIXI.Graphics();
             line.moveTo(cx - x, cy - y);
             line.lineTo(0, 0);
             line.stroke({ color: player.joined ? COLORS.joined : COLORS.ring, width: 1, alpha: 0.3 });
             group.addChild(line);
 
-            // avatar bg
             const avatarBg = new PIXI.Graphics();
             avatarBg.circle(0, 0, AVATAR_RADIUS);
             avatarBg.fill({ color: player.joined ? 0x0d2b1a : 0x12121c });
             avatarBg.stroke({ color: player.joined ? COLORS.joined : 0x2a2a3e, width: 2 });
             group.addChild(avatarBg);
 
-            // initials
-            const initial = new PIXI.Text({
-                text: player.username.slice(0, 2).toUpperCase(),
-                style: {
-                    fontFamily: 'monospace',
-                    fontSize: 15,
-                    fill: player.joined ? COLORS.joined : COLORS.subtext,
-                    fontWeight: 'bold',
-                }
-            });
-            initial.anchor.set(0.5);
-            group.addChild(initial);
+            const texture = textures[i];
+            if (texture) {
+                const mask = new PIXI.Graphics();
+                mask.circle(0, 0, AVATAR_RADIUS);
+                mask.fill({ color: 0xffffff });
+                group.addChild(mask);
 
-            // joined indicator dot
+                const sprite = new PIXI.Sprite(texture);
+                sprite.anchor.set(0.5);
+                sprite.width = AVATAR_RADIUS * 2;
+                sprite.height = AVATAR_RADIUS * 2;
+                sprite.mask = mask;
+                group.addChild(sprite);
+            } else {
+                const initial = new PIXI.Text({
+                    text: player.username.slice(0, 2).toUpperCase(),
+                    style: {
+                        fontFamily: 'monospace',
+                        fontSize: 15,
+                        fill: player.joined ? COLORS.joined : COLORS.subtext,
+                        fontWeight: 'bold',
+                    }
+                });
+                initial.anchor.set(0.5);
+                group.addChild(initial);
+            }
+
             const dot = new PIXI.Graphics();
             dot.circle(AVATAR_RADIUS - 6, -(AVATAR_RADIUS - 6), 6);
             dot.fill({ color: player.joined ? COLORS.joined : 0x2a2a3e });
             dot.stroke({ color: COLORS.bg, width: 2 });
             group.addChild(dot);
 
-            // username
             const label = new PIXI.Text({
                 text: player.username,
                 style: {
@@ -118,7 +145,6 @@
             label.y = AVATAR_RADIUS + 14;
             group.addChild(label);
 
-            // status label
             const status = new PIXI.Text({
                 text: player.joined ? 'ready' : 'waiting...',
                 style: {
@@ -133,7 +159,6 @@
 
             app.stage.addChild(group);
 
-            // idle pulse for players not yet joined
             if (!player.joined) {
                 let t = i * 1.2;
                 app.ticker.add(() => {
@@ -160,18 +185,26 @@
             autoDensity: true,
             backgroundAlpha: 0.0
         });
+        app.canvas.style.position = 'absolute';
+        app.canvas.style.inset = '0';
         container.appendChild(app.canvas);
         ready = true;
         redraw();
 
-       const observer = new ResizeObserver(() => {
+        const onResize = () => {
             if (!app?.renderer) return;
             app.renderer.resize(container.clientWidth, container.clientHeight);
             redraw();
-        });
-        observer.observe(container);
+        };
 
-        return () => observer.disconnect();
+        const observer = new ResizeObserver(onResize);
+        observer.observe(container);
+        window.addEventListener('resize', onResize);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', onResize);
+        }
     });
 
     onDestroy(() => {

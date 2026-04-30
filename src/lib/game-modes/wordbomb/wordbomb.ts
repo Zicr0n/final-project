@@ -148,6 +148,9 @@ export const wordbombGameMode: GameMode = {
 
 		io.to(String(roomId)).emit('game_state', room.gameState);
 	},
+	onLetterWritten({roomId, io}, word, userId) {
+		io.to(String(roomId)).emit('letter_written', { userId, word });
+	},
 	onTick({ room, roomId, io }) {
 		const state = room.gameState as GameState;
 

@@ -33,7 +33,7 @@ const rooms: Record<
 		owner: RoomPlayer | null;
 		prompts: Array<string> | null;
 		countdown: boolean;
-		closing: boolean; // FIX: guard against double closeRoom
+		closing: boolean; 
 	}
 > = {};
 
@@ -187,7 +187,6 @@ const webSocketServer = {
 					return;
 				}
 
-				// FIX: don't re-init a room that's in the middle of closing
 				if (!rooms[roomId] || rooms[roomId].closing) {
 					const mode = gameModes[foundRoom.type as keyof typeof gameModes];
 					rooms[roomId] = {
@@ -239,7 +238,6 @@ const webSocketServer = {
 				socket.data.roomId = roomId;
 				roomSockets.set(socket.data.userId, socket.id);
 
-				// FIX: include lives:0 on init (was missing, caused undefined in game mode)
 				currentRoom.players[socket.data.userId] = {
 					id: socket.data.userId,
 					username: socket.data.username,
@@ -320,8 +318,10 @@ const webSocketServer = {
 				const userId = socket.data.userId;
 				const currentRoom = rooms[roomId];
 				const mode = getMode(roomId);
+
 				if (!currentRoom || !mode) return;
 				const roomSockets = roomUserSockets.get(roomId);
+
 				if (roomSockets?.get(userId) !== socket.id) return;
 				mode.onWordSubmitted?.({ roomId, room: currentRoom, io }, userId, word);
 			});
@@ -331,10 +331,12 @@ const webSocketServer = {
 				const userId = socket.data.userId;
 				const currentRoom = rooms[roomId];
 				const mode = getMode(roomId);
+
 				if (!currentRoom || !mode) return;
+
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(userId) !== socket.id) return;
-				// FIX: was completely empty — never called onLetterWritten
+				
 				mode.onLetterWritten?.({ roomId, room: currentRoom, io }, word, userId);
 			});
 		});

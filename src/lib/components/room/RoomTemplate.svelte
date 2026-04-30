@@ -41,11 +41,15 @@
 
 	$effect(() => {
 		joinedPlayers = Object.values(players).filter((p) => p.joined);
+		showSidePanel;
+		setTimeout(() => window.dispatchEvent(new Event('resize')), 0);
+
 	});
 
 	$effect(() => {
 		isJoined = joinedPlayers.find((p) => p.id == data.user.id) != null;
 	});
+
 
 	// function playerPosition(i: number, total: number) {
 	// 	const angle = (i / total) * Math.PI * 2;

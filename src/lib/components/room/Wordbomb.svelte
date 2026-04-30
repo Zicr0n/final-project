@@ -7,7 +7,7 @@
 
 	let currentStatus = $state('waiting');
 
-	let joinedPlayers = $state<{ id: string; username: string; joined: boolean }[]>([]);
+	let joinedPlayers = $state<{ id: string; username: string; joined: boolean, playerImage : string | null, word : string | null }[]>([]);
 	let holderId = $state('');
 	let wordSubmissions = $state<{ userId: string; username: string; word: string }[]>([]);
 	let userInput = $state('');
@@ -73,6 +73,7 @@
 		socket.on('game_state', onGameState);
 		socket.on('room_state', onRoomState);
 		socket.on('wordbomb_submit_error', onSubmitError);
+		socket.on('letter_written', OnLetterWritten);
 
 		cleanup = () => {
 			socket.off('game_state', onGameState);
@@ -86,6 +87,24 @@
 	onDestroy(() => {
 		cleanup?.();
 	});
+
+	function OnLetterWritten(ctx : {userId : string, word : string}) {
+		const word = ctx.word;
+		const userId = ctx.userId;
+
+		if(!userId || word === null){
+			return
+		}
+
+		const targetPlayer = joinedPlayers.find((p) => p.id == userId)
+
+		if (targetPlayer){
+			targetPlayer.word = word
+		}
+
+		console.log(joinedPlayers)
+
+	}
 
 	function submitWord(event: SubmitEvent) {
 		event.preventDefault();
@@ -106,9 +125,10 @@
 	}
 
 	function OnLetterEntered() {
-		const clean = userInput.trim();
+		const clean = wordInput?.value.trim();
+		console.log(clean)
 
-		if (!socket || !isMyTurn || !clean) return;
+		if (!socket || !isMyTurn) return;
 
 		socket.emit('wordbomb_letter', { word: clean });
 	}

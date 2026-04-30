@@ -8,6 +8,7 @@
         imageUrl?: string;
         lives: number;
         joined: boolean;
+        word?: string | null;
     }
     // There is no limit to the LARP :freak:
     function getCssColor(variable: string): number {
@@ -38,8 +39,25 @@
         heart: 0xe74c3c,
     };
 
-    function redraw() {
+    const proxyUrl = (url: string) => `/proxy?url=${encodeURIComponent(url)}`;
+
+    async function redraw() {
         if (!app || !ready) return;
+
+        const textures = await Promise.all(
+            players.map(p =>
+                p.imageUrl
+                    ? new Promise<PIXI.Texture | null>(resolve => {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => resolve(PIXI.Texture.from(img));
+                        img.onerror = () => resolve(null);
+                        img.src = proxyUrl(p.imageUrl!);
+                    })
+                    : Promise.resolve(null)
+            )
+        );
+
         app.stage.removeChildren();
 
         const cx = app.screen.width / 2;
@@ -100,17 +118,32 @@
             avatarBg.stroke({ color: isCurrent ? COLORS.accent : 0x2a2a3e, width: 2 });
             group.addChild(avatarBg);
 
-            const initial = new PIXI.Text({
-                text: player.username.slice(0, 2).toUpperCase(),
-                style: {
-                    fontFamily: 'monospace',
-                    fontSize: 16,
-                    fill: isCurrent ? COLORS.accent : COLORS.text,
-                    fontWeight: 'bold',
-                }
-            });
-            initial.anchor.set(0.5);
-            group.addChild(initial);
+            const texture = textures[i];
+            if (texture) {
+                const mask = new PIXI.Graphics();
+                mask.circle(0, 0, AVATAR_RADIUS);
+                mask.fill({ color: 0xffffff });
+                group.addChild(mask);
+
+                const sprite = new PIXI.Sprite(texture);
+                sprite.anchor.set(0.5);
+                sprite.width = AVATAR_RADIUS * 2;
+                sprite.height = AVATAR_RADIUS * 2;
+                sprite.mask = mask;
+                group.addChild(sprite);
+            } else {
+                const initial = new PIXI.Text({
+                    text: player.username.slice(0, 2).toUpperCase(),
+                    style: {
+                        fontFamily: 'monospace',
+                        fontSize: 16,
+                        fill: isCurrent ? COLORS.accent : COLORS.text,
+                        fontWeight: 'bold',
+                    }
+                });
+                initial.anchor.set(0.5);
+                group.addChild(initial);
+            }
 
             const label = new PIXI.Text({
                 text: player.username,
@@ -123,6 +156,18 @@
             label.anchor.set(0.5);
             label.y = AVATAR_RADIUS + 14;
             group.addChild(label);
+
+            const writtenWord = new PIXI.Text({
+                text: player.word ?? ``,
+                style: {
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                    fill: isCurrent ? COLORS.accent : COLORS.subtext,
+                }
+            });
+            writtenWord.anchor.set(0.5);
+            writtenWord.y = AVATAR_RADIUS + 40;
+            group.addChild(writtenWord);
 
             const livesContainer = new PIXI.Container();
             livesContainer.y = AVATAR_RADIUS + 28;
@@ -152,8 +197,7 @@
     }
 
     $effect(() => {
-        // track reactive deps
-        players.forEach(p => [p.lives, p.joined, p.username]);
+        players.forEach(p => [p.lives, p.joined, p.username, p.word]);
         holderId;
         redraw();
     });
@@ -176,15 +220,20 @@
         ready = true;
         redraw();
 
-        const observer = new ResizeObserver(() => {
+        const onResize = () => {
             if (!app?.renderer) return;
             app.renderer.resize(container.clientWidth, container.clientHeight);
             redraw();
-        });
-        observer.observe(container);
+        };
 
-        return () => observer.disconnect();
-    });
+        const observer = new ResizeObserver(onResize);
+        observer.observe(container);
+        window.addEventListener('resize', onResize);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', onResize);
+        };})
 
     onDestroy(() => {
         app?.destroy(true);
