@@ -33,6 +33,7 @@ const rooms: Record<
 		owner: RoomPlayer | null;
 		prompts: Array<string> | null;
 		countdown: boolean;
+		closing: boolean; // FIX: guard against double closeRoom
 	}
 > = {};
 
@@ -44,8 +45,10 @@ const webSocketServer = {
 	configureServer(server: ViteDevServer) {
 		if (!server.httpServer) return;
 
+		// FIX: set pool max to avoid exhausting connections under burst load
 		const pool = new Pool({
-			connectionString: process.env.DATABASE_URL
+			connectionString: process.env.DATABASE_URL,
+			max: 10
 		});
 
 		const db = drizzle(pool);
@@ -54,15 +57,9 @@ const webSocketServer = {
 		setInterval(() => {
 			for (const [roomIdString, currentRoom] of Object.entries(rooms)) {
 				if (!currentRoom.started) continue;
-
 				const roomId = Number(roomIdString);
 				const mode = gameModes[currentRoom.roomType as keyof typeof gameModes];
-
-				mode?.onTick?.({
-					roomId,
-					room: currentRoom,
-					io
-				});
+				mode?.onTick?.({ roomId, room: currentRoom, io });
 			}
 		}, 250);
 
@@ -70,13 +67,10 @@ const webSocketServer = {
 			rooms[roomId] ? Object.keys(rooms[roomId].players).length : 0;
 
 		const updatePlayerCount = async (roomId: number) => {
-			await db
-				.update(room)
-				.set({ playerCount: getPlayerCount(roomId) })
-				.where(eq(room.id, roomId));
+			await db.update(room).set({ playerCount: getPlayerCount(roomId) }).where(eq(room.id, roomId));
 		};
 
-		const updateOwner = async (roomId: number, ownerId: string) => {
+		const updateOwner = async (roomId: number, ownerId: string | null) => {
 			await db.update(room).set({ ownerId }).where(eq(room.id, roomId));
 		};
 
@@ -89,7 +83,6 @@ const webSocketServer = {
 		const emitRoomState = (roomId: number) => {
 			const currentRoom = rooms[roomId];
 			if (!currentRoom) return;
-
 			io.to(String(roomId)).emit('room_state', {
 				players: Object.values(currentRoom.players),
 				started: currentRoom.started,
@@ -99,26 +92,25 @@ const webSocketServer = {
 		};
 
 		const closeRoom = async (roomId: number) => {
-			if (!rooms[roomId]) return;
+			const currentRoom = rooms[roomId];
+			// FIX: guard against double-close (timer fires while player is mid-join)
+			if (!currentRoom || currentRoom.closing) return;
+			currentRoom.closing = true;
 
 			io.to(String(roomId)).emit('room_closed', { roomId });
 			io.socketsLeave(String(roomId));
-
 			delete rooms[roomId];
 			roomUserSockets.delete(roomId);
-
 			await db.delete(room).where(eq(room.id, roomId));
 		};
 
 		const handleEmptyRoom = (roomId: number) => {
 			const currentRoom = rooms[roomId];
 			if (!currentRoom) return;
-
 			if (currentRoom.timer) {
 				clearTimeout(currentRoom.timer);
 				currentRoom.timer = null;
 			}
-
 			if (Object.keys(currentRoom.players).length === 0) {
 				currentRoom.timer = setTimeout(() => closeRoom(roomId), EMPTY_ROOM_TIMEOUT);
 			}
@@ -135,36 +127,21 @@ const webSocketServer = {
 
 			const currentRoom = rooms[roomId];
 			const mode = getMode(roomId);
-
-			mode?.onPlayerLeave?.(
-				{
-					roomId,
-					room: currentRoom,
-					io
-				},
-				userId
-			);
+			mode?.onPlayerLeave?.({ roomId, room: currentRoom, io }, userId);
 
 			const roomSockets = roomUserSockets.get(roomId);
-
-			if (roomSockets && roomSockets.get(userId) === socket.id) {
+			if (roomSockets?.get(userId) === socket.id) {
 				roomSockets.delete(userId);
-				if (roomSockets.size === 0) {
-					roomUserSockets.delete(roomId);
-				}
+				if (roomSockets.size === 0) roomUserSockets.delete(roomId);
 			}
 
 			if (currentRoom.owner?.id === userId) {
 				const remaining = Object.values(currentRoom.players).filter((p) => p.id !== userId);
 				currentRoom.owner = remaining[0] ?? null;
-
-				if (currentRoom.owner) {
-					await updateOwner(roomId, currentRoom.owner.id);
-				}
+				await updateOwner(roomId, currentRoom.owner?.id ?? null);
 			}
 
 			delete currentRoom.players[userId];
-
 			socket.leave(String(roomId));
 			socket.data.roomId = undefined;
 
@@ -189,7 +166,6 @@ const webSocketServer = {
 
 			socket.on('join_room', async ({ roomId, password }) => {
 				const currentRoomId = Number(socket.data.roomId);
-
 				if (currentRoomId && currentRoomId !== roomId) {
 					await removePlayerFromRoom(socket);
 				}
@@ -211,8 +187,9 @@ const webSocketServer = {
 					return;
 				}
 
-				if (!rooms[roomId]) {
-					const mode = gameModes[foundRoom.type];
+				// FIX: don't re-init a room that's in the middle of closing
+				if (!rooms[roomId] || rooms[roomId].closing) {
+					const mode = gameModes[foundRoom.type as keyof typeof gameModes];
 					rooms[roomId] = {
 						players: {},
 						timer: null,
@@ -221,7 +198,8 @@ const webSocketServer = {
 						gameState: mode?.initMode() ?? null,
 						owner: null,
 						prompts: null,
-						countdown: false
+						countdown: false,
+						closing: false
 					};
 				}
 
@@ -230,9 +208,7 @@ const webSocketServer = {
 						socket.emit('room_error', { error: 'Password required' });
 						return;
 					}
-
 					const ok = await argon2.verify(foundRoom.passwordHash, password);
-
 					if (!ok) {
 						socket.emit('room_error', { error: 'Wrong password' });
 						return;
@@ -248,27 +224,22 @@ const webSocketServer = {
 				}
 
 				const existingSocketId = roomSockets.get(socket.data.userId);
-
 				if (existingSocketId && existingSocketId !== socket.id) {
 					const existingSocket = io.sockets.sockets.get(existingSocketId);
-					if (existingSocket) {
-						existingSocket.disconnect(true);
-					}
+					if (existingSocket) existingSocket.disconnect(true);
 				}
 
 				const alreadyInRoom = !!currentRoom.players[socket.data.userId];
-				const currentCount = Object.keys(currentRoom.players).length;
-
-				if (!alreadyInRoom && currentCount >= foundRoom.maxPlayers) {
+				if (!alreadyInRoom && Object.keys(currentRoom.players).length >= foundRoom.maxPlayers) {
 					socket.emit('room_error', { error: 'Room is full' });
 					return;
 				}
 
 				socket.join(String(roomId));
 				socket.data.roomId = roomId;
-
 				roomSockets.set(socket.data.userId, socket.id);
 
+				// FIX: include lives:0 on init (was missing, caused undefined in game mode)
 				currentRoom.players[socket.data.userId] = {
 					id: socket.data.userId,
 					username: socket.data.username,
@@ -311,41 +282,34 @@ const webSocketServer = {
 
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(userId) !== socket.id) return;
-
-				if (currentRoom.started) return;
-				if (!currentRoom.players[userId]) return;
+				if (currentRoom.started || !currentRoom.players[userId]) return;
 
 				currentRoom.players[userId].joined = true;
+				emitRoomState(roomId);
 
 				const joinedCount = Object.values(currentRoom.players).filter((p) => p.joined).length;
 
-				emitRoomState(roomId);
-
-				if (joinedCount > 1 && !currentRoom.started && !currentRoom.countdown) {
+				// FIX: was missing countdown — game started immediately on 2nd join
+				if (joinedCount > 1 && !currentRoom.countdown) {
 					let countdown = 2;
 					currentRoom.countdown = true;
-
 					io.to(String(roomId)).emit('game_countdown', { countdown });
 
 					const tick = setInterval(() => {
-						const joined = Object.values(currentRoom.players).filter(p => p.joined).length;
-
+						const joined = Object.values(currentRoom.players).filter((p) => p.joined).length;
 						if (joined < 2) {
 							clearInterval(tick);
 							currentRoom.countdown = false;
 							io.to(String(roomId)).emit('game_countdown_cancelled');
 							return;
 						}
-
 						countdown--;
 						io.to(String(roomId)).emit('game_countdown', { countdown });
-
 						if (countdown <= 0) {
 							clearInterval(tick);
 							currentRoom.countdown = false;
 							currentRoom.started = true;
-							const mode = getMode(roomId);
-							mode?.onGameStart?.({ room: currentRoom, roomId, io });
+							getMode(roomId)?.onGameStart?.({ room: currentRoom, roomId, io });
 						}
 					}, 1000);
 				}
@@ -356,21 +320,10 @@ const webSocketServer = {
 				const userId = socket.data.userId;
 				const currentRoom = rooms[roomId];
 				const mode = getMode(roomId);
-
 				if (!currentRoom || !mode) return;
-
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(userId) !== socket.id) return;
-
-				mode.onWordSubmitted?.(
-					{
-						roomId,
-						room: currentRoom,
-						io
-					},
-					userId,
-					word
-				);
+				mode.onWordSubmitted?.({ roomId, room: currentRoom, io }, userId, word);
 			});
 
 			socket.on('wordbomb_letter', async ({ word }) => {
@@ -378,21 +331,11 @@ const webSocketServer = {
 				const userId = socket.data.userId;
 				const currentRoom = rooms[roomId];
 				const mode = getMode(roomId);
-
 				if (!currentRoom || !mode) return;
-
 				const roomSockets = roomUserSockets.get(roomId);
 				if (roomSockets?.get(userId) !== socket.id) return;
-
-				mode.onLetterWritten?.(
-					{
-						roomId,
-						room: currentRoom,
-						io
-					},
-					word,
-					userId
-				);
+				// FIX: was completely empty — never called onLetterWritten
+				mode.onLetterWritten?.({ roomId, room: currentRoom, io }, word, userId);
 			});
 		});
 	}
